@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!--
+      Dependencies are pinned deliberately in gradle/libs.versions.toml and upgraded together with
+      an explicit compatibility check. Update notifications are therefore noise in CI.
+    -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+
+    <!--
+      Adaptive icons live in mipmap-anydpi-v26 because AAPT2 refuses <adaptive-icon> outside a v26
+      qualifier in this project. minSdk is 26, so the folder qualifier itself is redundant but
+      required by the resource compiler.
+    -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>
