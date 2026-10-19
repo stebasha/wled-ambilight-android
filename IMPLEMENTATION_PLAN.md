@@ -97,12 +97,12 @@
 |---|---|---|---|---|
 | 0 | Аудит, план, инструменты | план зафиксирован, SDK/JDK/Gradle доступны | `java -version`, `source.properties` SDK, `gradle --version` | [x] |
 | 1 | Каркас Gradle/Compose/DI/навигация, модели, DataStore | `assembleDebug` успешен | `gradlew assembleDebug` | [x] |
-| 2 | WLED HTTP, устройства, mDNS, ручное добавление, тест цвета | probe/JSON/CRUD устройств покрыты тестами | `gradlew testDebugUnitTest` | [x] |
+| 2 | WLED HTTP, устройства, mDNS, ручное добавление, тест цвета | HTTP/JSON и кодек покрыты тестами; UI-путь проверяется на устройстве | `gradlew testDebugUnitTest` | [x] |
 | 3 | Геометрия LED, анализ кадра, сглаживание, превью | unit-тесты алгоритма зелёные | `gradlew testDebugUnitTest` | [x] |
 | 4 | MediaProjection, foreground service, жизненный цикл | сборка + код-ревью жизненного цикла, компиляция androidTest | `gradlew assembleDebug assembleDebugAndroidTest` | [x] |
 | 5 | DDP + WLED UDP, отправка, ограничение FPS | packet-level тесты зелёные | `gradlew testDebugUnitTest` | [x] |
 | 6 | UI/TV UX, калибровка, диагностика, доступность | все экраны собираются, D-pad-фокус реализован | `assembleDebug`, `lintDebug` | [x] |
-| 7 | Стабилизация, длительная работа, документы | отчёт с фактическими результатами | `testDebugUnitTest lintDebug assembleRelease` | [x] |
+| 7 | Стабилизация, длительная работа, документы | документы и автотесты готовы; длительный прогон — на оборудовании | `testDebugUnitTest lintDebug assembleRelease` | [x] |
 | 8 | Release APK, версия, известные ограничения | APK собран, подпись не подменена | `assembleRelease`, `apkanalyzer` | [x] |
 
 ## 5. План тестов
