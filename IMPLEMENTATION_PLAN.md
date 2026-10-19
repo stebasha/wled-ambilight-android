@@ -95,7 +95,7 @@
 
 | Этап | Содержание | Критерий готовности | Проверка | Статус |
 |---|---|---|---|---|
-| 0 | Аудит, план, инструменты | план зафиксирован, SDK/JDK/Gradle доступны | `java -version`, `sdkmanager --list`, `gradle --version` | [x] |
+| 0 | Аудит, план, инструменты | план зафиксирован, SDK/JDK/Gradle доступны | `java -version`, `source.properties` SDK, `gradle --version` | [x] |
 | 1 | Каркас Gradle/Compose/DI/навигация, модели, DataStore | `assembleDebug` успешен | `gradlew assembleDebug` | [x] |
 | 2 | WLED HTTP, устройства, mDNS, ручное добавление, тест цвета | probe/JSON/CRUD устройств покрыты тестами | `gradlew testDebugUnitTest` | [x] |
 | 3 | Геометрия LED, анализ кадра, сглаживание, превью | unit-тесты алгоритма зелёные | `gradlew testDebugUnitTest` | [x] |
