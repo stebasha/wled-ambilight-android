@@ -1,6 +1,7 @@
 package dev.wledambilight.core.data
 
 import android.content.Context
+import dev.wledambilight.core.discovery.GoveeDiscovery
 import dev.wledambilight.core.discovery.WledDiscovery
 import dev.wledambilight.core.network.SubnetScanner
 import dev.wledambilight.core.network.WledHttpClient
@@ -20,6 +21,7 @@ class AppContainer(context: Context) {
     val httpClient = WledHttpClient()
     val deviceRepository = DeviceRepository(settingsRepository, httpClient, diagnostics)
     val discovery = WledDiscovery(appContext, diagnostics)
+    val goveeDiscovery = GoveeDiscovery(appContext, diagnostics)
     val scanner = SubnetScanner()
     val engine = AmbilightEngine(appContext, diagnostics, httpClient)
 }

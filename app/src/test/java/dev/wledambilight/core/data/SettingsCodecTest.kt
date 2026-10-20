@@ -2,6 +2,8 @@ package dev.wledambilight.core.data
 
 import dev.wledambilight.core.model.AmbilightConfig
 import dev.wledambilight.core.model.AmbilightSettings
+import dev.wledambilight.core.model.DeviceKind
+import dev.wledambilight.core.model.LightZone
 import dev.wledambilight.core.model.LedDirection
 import dev.wledambilight.core.model.LedLayout
 import dev.wledambilight.core.model.PerformanceProfile
@@ -92,6 +94,34 @@ class SettingsCodecTest {
         assertEquals(100, decoded.value.settings.brightness)
         assertEquals(60, decoded.value.settings.targetFps)
         assertEquals(3.0f, decoded.value.settings.gamma, 0.001f)
+    }
+
+    @Test
+    fun `version 1 data without zones or device kind still decodes`() {
+        val oldConfig = """{"version":1,"config":{"settings":{"brightness":70},"layout":{"topCount":10}}}"""
+        val config = codec.decodeConfig(oldConfig)
+        assertFalse(config.corrupted)
+        assertTrue(config.value.zones.isEmpty())
+        assertTrue(config.value.mainStripEnabled)
+
+        val oldDevices = """{"version":1,"devices":[{"id":"a","name":"TV","host":"10.0.0.2"}]}"""
+        val devices = codec.decodeDevices(oldDevices)
+        assertFalse(devices.corrupted)
+        assertEquals(DeviceKind.WLED, devices.value.single().kind)
+    }
+
+    @Test
+    fun `zones round trip and are sanitized`() {
+        val zones = (0 until 20).map { LightZone(id = "z$it", deviceId = "d", ledCount = 9999, brightness = 300) }
+        val decoded = codec.decodeConfig(codec.encodeConfig(AmbilightConfig(zones = zones))).value
+        assertEquals(LightZone.MAX_ZONES, decoded.zones.size)
+        assertEquals(LedLayout.MAX_SIDE, decoded.zones.first().ledCount)
+        assertEquals(100, decoded.zones.first().brightness)
+
+        val govee = WledDevice(id = "g", kind = DeviceKind.GOVEE, host = "10.0.0.9", outputPort = 1)
+        val restored = codec.decodeDevices(codec.encodeDevices(listOf(govee))).value.single()
+        assertEquals(DeviceKind.GOVEE, restored.kind)
+        assertEquals(WledDevice.GOVEE_COMMAND_PORT, restored.outputPort)
     }
 
     @Test

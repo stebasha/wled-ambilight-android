@@ -46,6 +46,9 @@ fun DiagnosticCode.titleRes(): Int = when (this) {
     DiagnosticCode.CONFIG_CORRUPT -> R.string.diag_config_corrupt
     DiagnosticCode.CONFIG_SAVED -> R.string.diag_config_saved
     DiagnosticCode.CONFIG_RESET -> R.string.diag_config_reset
+    DiagnosticCode.ZONE_SKIPPED -> R.string.diag_zone_skipped
+    DiagnosticCode.GOVEE_TEST_SENT -> R.string.diag_govee_test_sent
+    DiagnosticCode.WLED_CONTROL_SENT -> R.string.diag_wled_control_sent
 }
 
 @StringRes
@@ -65,6 +68,7 @@ fun DiagnosticCode.hintRes(): Int? = when (this) {
     DiagnosticCode.CONFIG_CORRUPT -> R.string.diag_hint_config_corrupt
     DiagnosticCode.DISCOVERY_UNAVAILABLE -> R.string.diag_hint_discovery_unavailable
     DiagnosticCode.REALTIME_OCCUPIED -> R.string.diag_hint_realtime_occupied
+    DiagnosticCode.ZONE_SKIPPED -> R.string.diag_hint_zone_skipped
     else -> null
 }
 

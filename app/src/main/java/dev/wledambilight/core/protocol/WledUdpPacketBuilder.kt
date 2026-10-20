@@ -37,19 +37,27 @@ class WledUdpPacketBuilder(
         }
     }
 
-    fun build(rgb: ByteArray): List<ByteArray> {
+    /**
+     * Encodes [rgb] starting at strip LED [ledOffset]. DRGB has no addressing and therefore only
+     * accepts offset 0; WARLS needs every addressed LED below 256.
+     */
+    fun build(rgb: ByteArray, ledOffset: Int = 0): List<ByteArray> {
         require(rgb.size % 3 == 0) { "RGB payload must contain whole LEDs" }
+        require(ledOffset >= 0) { "ledOffset must not be negative" }
         val ledCount = rgb.size / 3
         if (ledCount == 0) return emptyList()
         return when (mode) {
-            WledUdpMode.WARLS -> buildWarls(rgb, ledCount)
-            WledUdpMode.DRGB -> buildDrgb(rgb, ledCount)
-            WledUdpMode.DNRGB -> buildDnrgb(rgb, ledCount)
+            WledUdpMode.WARLS -> buildWarls(rgb, ledCount, ledOffset)
+            WledUdpMode.DRGB -> {
+                require(ledOffset == 0) { "DRGB always starts at LED 0; use DNRGB or DDP for zones" }
+                buildDrgb(rgb, ledCount)
+            }
+            WledUdpMode.DNRGB -> buildDnrgb(rgb, ledCount, ledOffset)
         }
     }
 
-    private fun buildWarls(rgb: ByteArray, ledCount: Int): List<ByteArray> {
-        require(ledCount <= WledUdp.WARLS_MAX_LEDS) {
+    private fun buildWarls(rgb: ByteArray, ledCount: Int, ledOffset: Int): List<ByteArray> {
+        require(ledOffset + ledCount <= WledUdp.WARLS_MAX_LEDS) {
             "WARLS indexes LEDs with one byte and supports at most ${WledUdp.WARLS_MAX_LEDS} LEDs"
         }
         val chunkSize = minOf(maxLedsPerPacket, WledUdp.WARLS_MAX_LEDS)
@@ -63,7 +71,7 @@ class WledUdpPacketBuilder(
             for (i in 0 until count) {
                 val led = first + i
                 val at = 2 + i * 4
-                packet[at] = led.toByte()
+                packet[at] = (ledOffset + led).toByte()
                 packet[at + 1] = rgb[led * 3]
                 packet[at + 2] = rgb[led * 3 + 1]
                 packet[at + 3] = rgb[led * 3 + 2]
@@ -83,17 +91,18 @@ class WledUdpPacketBuilder(
         return listOf(packet)
     }
 
-    private fun buildDnrgb(rgb: ByteArray, ledCount: Int): List<ByteArray> {
+    private fun buildDnrgb(rgb: ByteArray, ledCount: Int, ledOffset: Int): List<ByteArray> {
         val chunks = ceil(ledCount.toDouble() / maxLedsPerPacket).toInt()
         return (0 until chunks).map { chunk ->
             val first = chunk * maxLedsPerPacket
             val count = minOf(maxLedsPerPacket, ledCount - first)
-            require(first <= 0xFFFF) { "DNRGB start index exceeds 16 bits" }
+            val start = ledOffset + first
+            require(start <= 0xFFFF) { "DNRGB start index exceeds 16 bits" }
             val packet = ByteArray(4 + count * 3)
             packet[0] = WledUdp.PROTOCOL_DNRGB.toByte()
             packet[1] = timeoutSeconds.toByte()
-            packet[2] = ((first ushr 8) and 0xFF).toByte()
-            packet[3] = (first and 0xFF).toByte()
+            packet[2] = ((start ushr 8) and 0xFF).toByte()
+            packet[3] = (start and 0xFF).toByte()
             System.arraycopy(rgb, first * 3, packet, 4, count * 3)
             packet
         }

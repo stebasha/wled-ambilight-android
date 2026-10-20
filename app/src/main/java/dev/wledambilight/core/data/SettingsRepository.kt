@@ -92,7 +92,9 @@ class SettingsRepository(
                 current + normalized
             }
             prefs[Keys.DEVICES] = codec.encodeDevices(next)
-            if (prefs[Keys.SELECTED_DEVICE] == null) prefs[Keys.SELECTED_DEVICE] = normalized.id
+            if (prefs[Keys.SELECTED_DEVICE] == null && normalized.isWled) {
+                prefs[Keys.SELECTED_DEVICE] = normalized.id
+            }
         }
     }
 
@@ -101,8 +103,17 @@ class SettingsRepository(
             val current = codec.decodeDevices(prefs[Keys.DEVICES]).value
             val next = current.filterNot { it.id == id }
             prefs[Keys.DEVICES] = codec.encodeDevices(next)
+            // Zones that pointed at the removed device are kept (so the user sees them) but disabled.
+            val config = codec.decodeConfig(prefs[Keys.CONFIG]).value
+            if (config.zones.any { it.deviceId == id }) {
+                prefs[Keys.CONFIG] = codec.encodeConfig(
+                    config.copy(
+                        zones = config.zones.map { if (it.deviceId == id) it.copy(enabled = false, deviceId = "") else it },
+                    ),
+                )
+            }
             if (prefs[Keys.SELECTED_DEVICE] == id) {
-                val fallback = next.firstOrNull()?.id
+                val fallback = next.firstOrNull { it.isWled }?.id
                 if (fallback == null) prefs.remove(Keys.SELECTED_DEVICE) else prefs[Keys.SELECTED_DEVICE] = fallback
             }
         }
@@ -111,7 +122,7 @@ class SettingsRepository(
     suspend fun selectDevice(id: String) {
         store.edit { prefs ->
             val current = codec.decodeDevices(prefs[Keys.DEVICES]).value
-            if (current.any { it.id == id }) prefs[Keys.SELECTED_DEVICE] = id
+            if (current.any { it.id == id && it.isWled }) prefs[Keys.SELECTED_DEVICE] = id
         }
     }
 

@@ -281,7 +281,8 @@ private fun pointOnSide(side: ScreenSide, fraction: Float, rect: Rect, stroke: F
     return when (side) {
         ScreenSide.TOP -> Offset(rect.left + rect.width * f, rect.top + offset)
         ScreenSide.RIGHT -> Offset(rect.right - offset, rect.top + rect.height * f)
-        ScreenSide.BOTTOM -> Offset(rect.left + rect.width * f, rect.bottom - offset)
+        // Geometric clockwise convention (see LedLayoutMapper): bottom runs right -> left.
+        ScreenSide.BOTTOM -> Offset(rect.right - rect.width * f, rect.bottom - offset)
         ScreenSide.LEFT -> Offset(rect.left + offset, rect.bottom - rect.height * f)
     }
 }

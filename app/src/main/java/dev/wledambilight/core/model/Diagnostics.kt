@@ -46,6 +46,9 @@ enum class DiagnosticCode(val defaultSeverity: DiagnosticSeverity) {
     CONFIG_CORRUPT(DiagnosticSeverity.WARNING),
     CONFIG_SAVED(DiagnosticSeverity.INFO),
     CONFIG_RESET(DiagnosticSeverity.INFO),
+    ZONE_SKIPPED(DiagnosticSeverity.WARNING),
+    GOVEE_TEST_SENT(DiagnosticSeverity.INFO),
+    WLED_CONTROL_SENT(DiagnosticSeverity.INFO),
 }
 
 data class DiagnosticEvent(
@@ -70,4 +73,9 @@ data class SessionStats(
     val ledCount: Int = 0,
     val protocolLabel: String = "",
     val startedEpochMillis: Long? = null,
+    /** Number of outputs (WLED controllers + Govee lamps) in the session. */
+    val outputs: Int = 0,
+    /** Outputs currently in send-failure backoff. */
+    val outputsDown: Int = 0,
+    val demo: Boolean = false,
 )

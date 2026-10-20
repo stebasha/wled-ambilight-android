@@ -54,6 +54,8 @@ data class WledSegment(
     val fx: Int? = null,
 )
 
+data class WledPreset(val id: Int, val name: String)
+
 data class WledProbe(
     val info: WledInfo,
     val latencyMs: Long,

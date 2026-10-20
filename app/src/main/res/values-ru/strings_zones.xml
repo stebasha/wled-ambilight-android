@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_zone_skipped">Зона пропущена</string>
+    <string name="diag_govee_test_sent">Тестовый цвет отправлен на Govee</string>
+    <string name="diag_wled_control_sent">Команда отправлена на WLED</string>
+    <string name="diag_hint_zone_skipped">Зона пересекается с другим диапазоном LED, не привязана к устройству или не подходит протоколу (DRGB — один диапазон с LED 0, WARLS — до 255 LED). Исправьте её на экране «Зоны»; остальные выходы продолжают работать.</string>
+</resources>

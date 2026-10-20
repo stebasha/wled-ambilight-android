@@ -1,6 +1,7 @@
 package dev.wledambilight.core.data
 
 import dev.wledambilight.core.model.AmbilightConfig
+import dev.wledambilight.core.model.LightZone
 import dev.wledambilight.core.model.WledDevice
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -103,4 +104,7 @@ class SettingsCodec(private val json: Json) {
     }
 }
 
-fun AmbilightConfig.sanitized(): AmbilightConfig = copy(settings = settings.sanitized())
+fun AmbilightConfig.sanitized(): AmbilightConfig = copy(
+    settings = settings.sanitized(),
+    zones = zones.take(LightZone.MAX_ZONES).map { it.sanitized() }.distinctBy { it.id },
+)

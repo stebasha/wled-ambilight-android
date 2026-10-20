@@ -38,8 +38,19 @@ class DdpPacketBuilder(
         }
     }
 
-    fun build(rgb: ByteArray, startSequence: Int = 0): List<ByteArray> {
+    /**
+     * Encodes [rgb] starting at strip LED [ledOffset]. Several calls with different offsets can
+     * update separate ranges of one controller (multi-zone); pass [push] = true only for the last
+     * range of a frame so WLED displays all ranges at once.
+     */
+    fun build(
+        rgb: ByteArray,
+        startSequence: Int = 0,
+        ledOffset: Int = 0,
+        push: Boolean = true,
+    ): List<ByteArray> {
         require(rgb.size % 3 == 0) { "RGB payload must contain whole LEDs" }
+        require(ledOffset >= 0) { "ledOffset must not be negative" }
         val ledCount = rgb.size / 3
         if (ledCount == 0) return emptyList()
         val chunkCount = ceil(ledCount.toDouble() / maxLedsPerPacket).toInt()
@@ -50,13 +61,14 @@ class DdpPacketBuilder(
             val leds = minOf(maxLedsPerPacket, ledCount - firstLed)
             val payloadLength = leds * 3
             val packet = ByteArray(Ddp.HEADER_SIZE + payloadLength)
-            val push = chunk == chunkCount - 1
-            packet[0] = ((Ddp.FLAG_VERSION_1 or if (push) Ddp.FLAG_PUSH else 0) and 0xFF).toByte()
+            val pushThis = push && chunk == chunkCount - 1
+            packet[0] = ((Ddp.FLAG_VERSION_1 or if (pushThis) Ddp.FLAG_PUSH else 0) and 0xFF).toByte()
             packet[1] = ((startSequence + chunk) and 0xFF).toByte()
             packet[2] = Ddp.DATA_TYPE_RGB888.toByte()
             packet[3] = destinationId.toByte()
 
-            val offset = firstLed * 3
+            val sourceOffset = firstLed * 3
+            val offset = (ledOffset + firstLed) * 3
             packet[4] = ((offset ushr 24) and 0xFF).toByte()
             packet[5] = ((offset ushr 16) and 0xFF).toByte()
             packet[6] = ((offset ushr 8) and 0xFF).toByte()
@@ -64,7 +76,7 @@ class DdpPacketBuilder(
             packet[8] = ((payloadLength ushr 8) and 0xFF).toByte()
             packet[9] = (payloadLength and 0xFF).toByte()
 
-            System.arraycopy(rgb, offset, packet, Ddp.HEADER_SIZE, payloadLength)
+            System.arraycopy(rgb, sourceOffset, packet, Ddp.HEADER_SIZE, payloadLength)
             packets += packet
         }
         return packets

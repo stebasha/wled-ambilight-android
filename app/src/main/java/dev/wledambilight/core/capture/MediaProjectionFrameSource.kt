@@ -15,6 +15,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.io.Closeable
+import java.nio.ByteOrder
 
 sealed interface FrameSourceEvent {
     data object StoppedBySystem : FrameSourceEvent
@@ -153,20 +154,31 @@ class MediaProjectionFrameSource(
             val pixelStride = plane.pixelStride
             val rowBytes = frameWidth * pixelStride
             if (rowStride < rowBytes) return
-            val bytes = ByteArray(rowStride * frameHeight)
-            buffer.rewind()
-            buffer.get(bytes, 0, minOf(bytes.size, buffer.remaining()))
-
-            val pixels = IntArray(frameWidth * frameHeight)
-            var out = 0
-            for (row in 0 until frameHeight) {
-                var offset = row * rowStride
-                for (col in 0 until frameWidth) {
-                    val red = bytes[offset].toInt() and 0xFF
-                    val green = bytes[offset + 1].toInt() and 0xFF
-                    val blue = bytes[offset + 2].toInt() and 0xFF
-                    pixels[out++] = (0xFF shl 24) or (red shl 16) or (green shl 8) or blue
-                    offset += pixelStride
+            val pixels = nextPixelBuffer(frameWidth * frameHeight)
+            if (pixelStride == 4 && rowStride % 4 == 0) {
+                // Fast path: bulk-copy rows as little-endian ints (RGBA bytes -> 0xAABBGGRR) and
+                // swizzle to ARGB in place. No per-frame byte array.
+                val ints = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+                val intsPerRow = rowStride / 4
+                for (row in 0 until frameHeight) {
+                    ints.position(row * intsPerRow)
+                    ints.get(pixels, row * frameWidth, frameWidth)
+                }
+                for (i in 0 until frameWidth * frameHeight) {
+                    val v = pixels[i]
+                    pixels[i] = OPAQUE or ((v and 0xFF) shl 16) or (v and 0xFF00) or ((v ushr 16) and 0xFF)
+                }
+            } else {
+                var out = 0
+                for (row in 0 until frameHeight) {
+                    var offset = row * rowStride
+                    for (col in 0 until frameWidth) {
+                        val red = buffer.get(offset).toInt() and 0xFF
+                        val green = buffer.get(offset + 1).toInt() and 0xFF
+                        val blue = buffer.get(offset + 2).toInt() and 0xFF
+                        pixels[out++] = OPAQUE or (red shl 16) or (green shl 8) or blue
+                        offset += pixelStride
+                    }
                 }
             }
             _frames.tryEmit(
@@ -182,6 +194,20 @@ class MediaProjectionFrameSource(
         } finally {
             image.close()
         }
+    }
+
+    /**
+     * Small ring of reusable pixel arrays. The flow holds at most one pending frame and the
+     * consumer one more, so a ring of [PIXEL_RING] never overwrites a frame still being analysed.
+     */
+    private val pixelRing = arrayOfNulls<IntArray>(PIXEL_RING)
+    private var ringIndex = 0
+
+    private fun nextPixelBuffer(size: Int): IntArray {
+        ringIndex = (ringIndex + 1) % PIXEL_RING
+        val existing = pixelRing[ringIndex]
+        if (existing != null && existing.size == size) return existing
+        return IntArray(size).also { pixelRing[ringIndex] = it }
     }
 
     override fun close() {
@@ -205,5 +231,7 @@ class MediaProjectionFrameSource(
 
     companion object {
         private const val TAG = "AmbilightCapture"
+        private const val OPAQUE = 0xFF shl 24
+        private const val PIXEL_RING = 4
     }
 }

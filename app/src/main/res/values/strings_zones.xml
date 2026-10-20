@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_zone_skipped">Zone skipped</string>
+    <string name="diag_govee_test_sent">Govee test colour sent</string>
+    <string name="diag_wled_control_sent">Command sent to WLED</string>
+    <string name="diag_hint_zone_skipped">A zone overlaps another LED range, has no device or does not fit the protocol (DRGB allows one range from LED 0, WARLS up to 255 LEDs). Fix it on the Zones screen; other outputs keep running.</string>
+</resources>

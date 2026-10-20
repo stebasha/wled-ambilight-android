@@ -24,6 +24,8 @@ import dev.wledambilight.R
 import dev.wledambilight.core.data.AppContainer
 import dev.wledambilight.core.model.DiagnosticCode
 import dev.wledambilight.engine.EngineState
+import dev.wledambilight.engine.OutputPlanner
+import dev.wledambilight.engine.SessionSource
 import dev.wledambilight.engine.StopReason
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -99,14 +101,14 @@ class AmbilightService : Service() {
         serviceScope.launch {
             val config = container.settingsRepository.currentConfig()
             val device = container.deviceRepository.selectedDevice.first()
-            if (device == null) {
-                container.diagnostics.report(DiagnosticCode.DEVICE_NOT_FOUND, "no device selected")
-                runCatching { projection.stop() }
-                stopForegroundCompat()
-                stopSelf()
-                return@launch
-            }
-            val started = container.engine.start(projection, device, config.layout, config.settings)
+            val devices = container.deviceRepository.devices.first()
+            val plan = OutputPlanner.plan(config, device, devices)
+            val started = container.engine.start(
+                SessionSource.Projection(projection),
+                plan,
+                config.layout,
+                config.settings,
+            )
             if (!started) {
                 stopForegroundCompat()
                 stopSelf()

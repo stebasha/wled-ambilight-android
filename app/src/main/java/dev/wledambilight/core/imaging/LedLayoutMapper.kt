@@ -66,6 +66,22 @@ object LedLayoutMapper {
         return result
     }
 
+    /**
+     * Zones for a linear strip along one edge. Physical order is left->right for top/bottom strips
+     * and bottom->top for left/right strips (how desk and side strips are usually wired);
+     * [reverse] flips it. Fractions use the same geometric clockwise convention as [zones].
+     */
+    fun edgeZones(side: ScreenSide, count: Int, reverse: Boolean): List<LedZone> {
+        if (count <= 0) return emptyList()
+        val sameAsClockwise = side == ScreenSide.TOP || side == ScreenSide.LEFT
+        val segments = (0 until count).map { i ->
+            val a = i.toFloat() / count
+            val b = (i + 1).toFloat() / count
+            if (sameAsClockwise) a to b else (1f - b) to (1f - a)
+        }.let { if (reverse) it.reversed() else it }
+        return segments.mapIndexed { index, (from, to) -> LedZone(index, side, from, to) }
+    }
+
     fun startSide(corner: StartCorner, direction: LedDirection): ScreenSide = when (direction) {
         LedDirection.CLOCKWISE -> when (corner) {
             StartCorner.TOP_LEFT -> ScreenSide.TOP

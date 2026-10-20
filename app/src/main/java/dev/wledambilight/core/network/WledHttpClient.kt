@@ -88,6 +88,50 @@ class WledHttpClient(
 
     suspend fun setState(host: String, port: Int, payload: JsonObject): Unit = postJson(host, port, payload)
 
+    /**
+     * Leaves realtime mode (`"live": false` in the JSON API), so WLED returns to its previous
+     * effect immediately instead of waiting for the realtime timeout.
+     */
+    suspend fun exitRealtime(host: String, port: Int): Unit =
+        postJson(host, port, buildJsonObject { put("live", false) })
+
+    /** Saved presets from `/presets.json`; entries without a name get "Preset N". */
+    suspend fun presets(host: String, port: Int): List<WledPreset> {
+        val root = try {
+            json.parseToJsonElement(get(host, port, "presets.json")) as? JsonObject
+        } catch (e: SerializationException) {
+            throw WledHttpError.InvalidPayload(e)
+        } catch (e: IllegalArgumentException) {
+            throw WledHttpError.InvalidPayload(e)
+        } ?: throw WledHttpError.InvalidPayload()
+        return root.entries.mapNotNull { (key, value) ->
+            val id = key.toIntOrNull() ?: return@mapNotNull null
+            if (id <= 0) return@mapNotNull null // "0" is the empty placeholder entry.
+            val obj = value as? JsonObject ?: return@mapNotNull null
+            if (obj.isEmpty()) return@mapNotNull null
+            val name = (obj["n"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.trim()
+            WledPreset(id = id, name = name?.ifBlank { null }?.take(48) ?: "Preset $id")
+        }.sortedBy { it.id }
+    }
+
+    /** Effect names from `/json/eff`; the list index is the effect id. */
+    suspend fun effects(host: String, port: Int): List<String> =
+        decode<List<String>>(get(host, port, "json/eff")).map { it.take(48) }
+
+    suspend fun applyPreset(host: String, port: Int, presetId: Int): Unit =
+        postJson(host, port, buildJsonObject { put("ps", presetId.coerceIn(1, 250)) })
+
+    /** Sets an effect on all selected segments (`seg` as an object, per the JSON API). */
+    suspend fun applyEffect(host: String, port: Int, effectId: Int): Unit =
+        postJson(
+            host,
+            port,
+            buildJsonObject {
+                put("on", true)
+                put("seg", buildJsonObject { put("fx", effectId.coerceAtLeast(0)) })
+            },
+        )
+
     private suspend fun get(host: String, port: Int, path: String): String {
         val request = Request.Builder().url(url(host, port, path)).get().build()
         return execute(request)

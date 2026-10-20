@@ -35,6 +35,7 @@ enum class LedDirection {
     COUNTER_CLOCKWISE,
 }
 
+@Serializable
 enum class ScreenSide {
     TOP,
     RIGHT,
@@ -42,11 +43,24 @@ enum class ScreenSide {
     LEFT,
 }
 
+/** What kind of light a saved device is. Older saved devices have no field and decode as WLED. */
+@Serializable
+enum class DeviceKind {
+    /** WLED controller: HTTP JSON API + DDP / WLED UDP realtime streaming. */
+    WLED,
+
+    /** Govee lamp or strip with "LAN Control" enabled; documented Govee LAN API, UDP 4003. */
+    GOVEE,
+}
+
 @Serializable
 data class WledDevice(
     val id: String = UUID.randomUUID().toString(),
+    val kind: DeviceKind = DeviceKind.WLED,
     val name: String = "",
     val host: String = "",
+    /** Govee model (SKU) reported by LAN discovery, e.g. H6199. Informational only. */
+    val model: String? = null,
     val httpPort: Int = 80,
     val protocol: OutputProtocol = OutputProtocol.DDP,
     val outputPort: Int = OutputProtocol.DDP.defaultPort,
@@ -60,16 +74,93 @@ data class WledDevice(
     val displayName: String
         get() = name.ifBlank { host }
 
+    val isWled: Boolean get() = kind == DeviceKind.WLED
+
     fun normalized(): WledDevice = copy(
         name = name.trim().take(64),
         host = host.trim(),
+        model = model?.trim()?.take(32)?.ifBlank { null },
         httpPort = httpPort.coerceIn(1, 65535),
-        outputPort = outputPort.coerceIn(1, 65535),
+        outputPort = if (kind == DeviceKind.GOVEE) GOVEE_COMMAND_PORT else outputPort.coerceIn(1, 65535),
         ledCount = ledCount?.coerceIn(1, MAX_LEDS),
     )
 
     companion object {
         const val MAX_LEDS = 1500
+        const val GOVEE_COMMAND_PORT = 4003
+    }
+}
+
+/** How an extra light zone takes its colours from the screen. */
+@Serializable
+enum class ZoneMapping {
+    /** A strip that runs along one screen edge (desk strip -> bottom, side towers -> left/right). */
+    EDGE,
+
+    /** A strip around a frame with its own per-side LED counts (second TV, arch, monitor). */
+    PERIMETER,
+
+    /** Every LED (or a single-colour lamp) shows the average of one screen region. */
+    SOLID,
+}
+
+/** Screen area averaged by [ZoneMapping.SOLID] zones. */
+@Serializable
+enum class ScreenRegion {
+    FULL,
+    LEFT_HALF,
+    RIGHT_HALF,
+    TOP_HALF,
+    BOTTOM_HALF,
+    LEFT_EDGE,
+    RIGHT_EDGE,
+    TOP_EDGE,
+    BOTTOM_EDGE,
+    CENTER,
+}
+
+/**
+ * An additional output synchronised with the main screen strip: another WLED controller, another
+ * LED range of the same controller (e.g. LEDs 76..135 under the desk) or a Govee lamp.
+ *
+ * All zones are computed from the same captured frame and sent in the same pipeline tick, so they
+ * stay in sync with the main strip.
+ */
+@Serializable
+data class LightZone(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String = "",
+    val enabled: Boolean = true,
+    val deviceId: String = "",
+    val mapping: ZoneMapping = ZoneMapping.EDGE,
+    /** First LED of this zone on the controller strip (WLED only). */
+    val ledOffset: Int = 0,
+    /** LEDs in the zone for [ZoneMapping.EDGE] and [ZoneMapping.SOLID]. Ignored for Govee. */
+    val ledCount: Int = 30,
+    val edge: ScreenSide = ScreenSide.BOTTOM,
+    /** Edge strips run left->right (top/bottom) and bottom->top (left/right); this flips that. */
+    val reverse: Boolean = false,
+    val region: ScreenRegion = ScreenRegion.FULL,
+    val layout: LedLayout = LedLayout(),
+    /** Per-zone brightness in percent, applied on top of the global Ambilight brightness. */
+    val brightness: Int = 100,
+) {
+    /** Number of LEDs this zone writes on a WLED controller. */
+    fun ledsFor(kind: DeviceKind): Int = when {
+        kind == DeviceKind.GOVEE -> 1
+        mapping == ZoneMapping.PERIMETER -> layout.total
+        else -> ledCount
+    }
+
+    fun sanitized(): LightZone = copy(
+        name = name.trim().take(48),
+        ledOffset = ledOffset.coerceIn(0, WledDevice.MAX_LEDS - 1),
+        ledCount = ledCount.coerceIn(1, LedLayout.MAX_SIDE),
+        brightness = brightness.coerceIn(0, 100),
+    )
+
+    companion object {
+        const val MAX_ZONES = 12
     }
 }
 
@@ -249,4 +340,7 @@ val PerformanceProfile.maxAnalysisWidth: Int
 data class AmbilightConfig(
     val settings: AmbilightSettings = AmbilightSettings(),
     val layout: LedLayout = LedLayout(),
+    /** When false only [zones] are driven; the selected controller's screen strip is skipped. */
+    val mainStripEnabled: Boolean = true,
+    val zones: List<LightZone> = emptyList(),
 )

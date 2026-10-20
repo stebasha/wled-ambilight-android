@@ -28,8 +28,9 @@ class DeviceRepository(
 ) {
     val devices: Flow<List<WledDevice>> = settings.devices
 
+    /** The WLED controller that drives the main screen strip. Govee lamps can only be zones. */
     val selectedDevice: Flow<WledDevice?> = combine(settings.devices, settings.selectedDeviceId) { list, id ->
-        list.firstOrNull { it.id == id } ?: list.firstOrNull()
+        list.firstOrNull { it.id == id && it.isWled } ?: list.firstOrNull { it.isWled }
     }
 
     suspend fun save(device: WledDevice): WledDevice {
