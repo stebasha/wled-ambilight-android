@@ -51,6 +51,22 @@ enum class DeviceKind {
 
     /** Govee lamp or strip with "LAN Control" enabled; documented Govee LAN API, UDP 4003. */
     GOVEE,
+
+    /** Home Assistant server; zones address its `light.*` entities through the REST API. */
+    HOME_ASSISTANT,
+}
+
+/** What the outputs show while the captured picture is black (DRM, a black scene, a paused app). */
+@Serializable
+enum class BlackFrameBehavior {
+    /** Follow the picture: LEDs go dark. */
+    OFF,
+
+    /** Keep the last colours seen before the picture went black. */
+    KEEP_LAST,
+
+    /** Show [AmbilightSettings.fallbackColor] on every output. */
+    FALLBACK_COLOR,
 }
 
 @Serializable
@@ -61,6 +77,8 @@ data class WledDevice(
     val host: String = "",
     /** Govee model (SKU) reported by LAN discovery, e.g. H6199. Informational only. */
     val model: String? = null,
+    /** Home Assistant only: use https:// (e.g. a TLS proxy). WLED always uses http. */
+    val useHttps: Boolean = false,
     val httpPort: Int = 80,
     val protocol: OutputProtocol = OutputProtocol.DDP,
     val outputPort: Int = OutputProtocol.DDP.defaultPort,
@@ -82,12 +100,14 @@ data class WledDevice(
         model = model?.trim()?.take(32)?.ifBlank { null },
         httpPort = httpPort.coerceIn(1, 65535),
         outputPort = if (kind == DeviceKind.GOVEE) GOVEE_COMMAND_PORT else outputPort.coerceIn(1, 65535),
+        useHttps = kind == DeviceKind.HOME_ASSISTANT && useHttps,
         ledCount = ledCount?.coerceIn(1, MAX_LEDS),
     )
 
     companion object {
         const val MAX_LEDS = 1500
         const val GOVEE_COMMAND_PORT = 4003
+        const val HOME_ASSISTANT_PORT = 8123
     }
 }
 
@@ -144,10 +164,12 @@ data class LightZone(
     val layout: LedLayout = LedLayout(),
     /** Per-zone brightness in percent, applied on top of the global Ambilight brightness. */
     val brightness: Int = 100,
+    /** Home Assistant only: the `light.*` entity driven by this zone. */
+    val entityId: String? = null,
 ) {
     /** Number of LEDs this zone writes on a WLED controller. */
     fun ledsFor(kind: DeviceKind): Int = when {
-        kind == DeviceKind.GOVEE -> 1
+        kind != DeviceKind.WLED -> 1
         mapping == ZoneMapping.PERIMETER -> layout.total
         else -> ledCount
     }
@@ -157,6 +179,7 @@ data class LightZone(
         ledOffset = ledOffset.coerceIn(0, WledDevice.MAX_LEDS - 1),
         ledCount = ledCount.coerceIn(1, LedLayout.MAX_SIDE),
         brightness = brightness.coerceIn(0, 100),
+        entityId = entityId?.trim()?.take(255)?.ifBlank { null },
     )
 
     companion object {
@@ -283,6 +306,11 @@ data class AmbilightSettings(
     val edgeWeighting: Float = 0.5f,
     val minBrightness: Int = 0,
     val blackBarCompensation: Boolean = true,
+    /** Zones darker than this (percent luma, 0..25) are treated as black / switched off. */
+    val blackThreshold: Int = 2,
+    val blackFrameBehavior: BlackFrameBehavior = BlackFrameBehavior.OFF,
+    /** ARGB colour used by [BlackFrameBehavior.FALLBACK_COLOR]. */
+    val fallbackColor: Int = DEFAULT_FALLBACK_COLOR,
     val colorBalance: ColorBalance = ColorBalance(),
     val performanceProfile: PerformanceProfile = PerformanceProfile.BALANCED,
     val keepScreenOn: Boolean = false,
@@ -303,6 +331,8 @@ data class AmbilightSettings(
         edgeInset = edgeInset.coerceIn(0f, 0.15f),
         edgeWeighting = edgeWeighting.coerceIn(0f, 1f),
         minBrightness = minBrightness.coerceIn(0, 80),
+        blackThreshold = blackThreshold.coerceIn(0, 25),
+        fallbackColor = fallbackColor or (0xFF shl 24),
         colorBalance = ColorBalance(
             red = colorBalance.red.coerceIn(0.5f, 1.5f),
             green = colorBalance.green.coerceIn(0.5f, 1.5f),
@@ -313,6 +343,11 @@ data class AmbilightSettings(
     /** Frames per second actually used after applying the performance profile. */
     val effectiveFps: Int
         get() = minOf(targetFps, performanceProfile.maxFps)
+
+    companion object {
+        /** Warm, dim amber: pleasant as a "TV is on" glow when the picture is protected. */
+        const val DEFAULT_FALLBACK_COLOR: Int = 0xFF5A3410.toInt()
+    }
 
     /** Analysis width actually used after applying the performance profile. */
     val effectiveAnalysisWidth: Int

@@ -111,6 +111,16 @@ fun kindLabel(kind: DeviceKind): String = stringResource(
     when (kind) {
         DeviceKind.WLED -> R.string.kind_wled
         DeviceKind.GOVEE -> R.string.kind_govee
+        DeviceKind.HOME_ASSISTANT -> R.string.kind_home_assistant
+    },
+)
+
+@Composable
+fun blackBehaviorLabel(behavior: dev.wledambilight.core.model.BlackFrameBehavior): String = stringResource(
+    when (behavior) {
+        dev.wledambilight.core.model.BlackFrameBehavior.OFF -> R.string.black_off
+        dev.wledambilight.core.model.BlackFrameBehavior.KEEP_LAST -> R.string.black_keep
+        dev.wledambilight.core.model.BlackFrameBehavior.FALLBACK_COLOR -> R.string.black_fallback
     },
 )
 

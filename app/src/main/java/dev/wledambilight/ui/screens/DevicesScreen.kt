@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.wledambilight.R
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.LinearScale
 import dev.wledambilight.core.model.DeviceKind
@@ -71,6 +72,7 @@ fun DevicesScreen(viewModel: AppViewModel) {
     val scanSubnet by viewModel.scanSubnet.collectAsStateWithLifecycle()
     val busyId by viewModel.busyDeviceId.collectAsStateWithLifecycle()
     val goveeHits by viewModel.goveeHits.collectAsStateWithLifecycle()
+    val haLights by viewModel.haLights.collectAsStateWithLifecycle()
     val goveeScanning by viewModel.goveeScanning.collectAsStateWithLifecycle()
     var goveeSearched by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(goveeScanning) { if (goveeScanning) goveeSearched = true }
@@ -251,6 +253,7 @@ fun DevicesScreen(viewModel: AppViewModel) {
                 onTest = { viewModel.probeDevice(device) },
                 onEdit = { editing = device },
                 onDelete = { deleteTarget = device },
+                haLightCount = haLights[device.id]?.size,
             )
         }
     }
@@ -259,8 +262,8 @@ fun DevicesScreen(viewModel: AppViewModel) {
         DeviceDialog(
             initial = editing,
             onDismiss = { addOpen = false; editing = null },
-            onSave = { device ->
-                viewModel.saveDevice(device)
+            onSave = { device, token ->
+                if (device.kind == DeviceKind.HOME_ASSISTANT) viewModel.saveHaDevice(device, token) else viewModel.saveDevice(device)
                 addOpen = false
                 editing = null
             },
@@ -336,8 +339,10 @@ private fun DeviceCard(
     onTest: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    haLightCount: Int? = null,
 ) {
     val isGovee = device.kind == DeviceKind.GOVEE
+    val isHa = device.kind == DeviceKind.HOME_ASSISTANT
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -355,13 +360,19 @@ private fun DeviceCard(
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconBadge(
-                    if (isGovee) Icons.Rounded.Lightbulb else Icons.Rounded.LinearScale,
-                    tint = if (isGovee) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                    when {
+                        isHa -> Icons.Rounded.Home
+                        isGovee -> Icons.Rounded.Lightbulb
+                        else -> Icons.Rounded.LinearScale
+                    },
+                    tint = if (isGovee || isHa) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                 )
                 Column(Modifier.weight(1f)) {
                     Text(device.displayName, style = MaterialTheme.typography.titleLarge)
                     Text(
-                        if (isGovee) {
+                        if (isHa) {
+                            "${if (device.useHttps) "https" else "http"}://${device.host}:${device.httpPort} · ${stringResource(R.string.devices_ha_card)}"
+                        } else if (isGovee) {
                             "${device.host} · ${stringResource(R.string.devices_govee_card)}"
                         } else {
                             "${device.host}:${device.httpPort} · $protocolText → ${device.outputPort}"
@@ -371,10 +382,12 @@ private fun DeviceCard(
                     )
                 }
                 if (selected) Pill(stringResource(R.string.devices_main))
-                if (isGovee) Pill(kindLabel(device.kind), MaterialTheme.colorScheme.tertiary)
+                if (isGovee || isHa) Pill(kindLabel(device.kind), MaterialTheme.colorScheme.tertiary)
             }
             Text(
-                text = if (isGovee) {
+                text = if (isHa) {
+                    haLightCount?.let { stringResource(R.string.devices_ha_lights, it) } ?: notTested
+                } else if (isGovee) {
                     device.model ?: unknown
                 } else {
                     "$firmwareLabel: ${device.firmwareVersion ?: notTested}   ·   " +
@@ -399,7 +412,7 @@ private fun DeviceCard(
                     Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
                 Spacer(Modifier.weight(1f))
-                if (!selected && !isGovee) {
+                if (!selected && device.isWled) {
                     Button(onClick = onSelect, modifier = Modifier.tvFocusRing()) {
                         Text(stringResource(R.string.devices_make_main))
                     }
@@ -413,9 +426,11 @@ private fun DeviceCard(
 private fun DeviceDialog(
     initial: WledDevice?,
     onDismiss: () -> Unit,
-    onSave: (WledDevice) -> Unit,
+    onSave: (WledDevice, String) -> Unit,
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
+    var token by remember { mutableStateOf("") }
+    var https by remember { mutableStateOf(initial?.useHttps ?: false) }
     var host by remember { mutableStateOf(initial?.host ?: "") }
     var httpPort by remember { mutableStateOf((initial?.httpPort ?: 80).toString()) }
     var protocol by remember { mutableStateOf(initial?.protocol ?: OutputProtocol.DDP) }
@@ -427,6 +442,7 @@ private fun DeviceDialog(
     var kind by remember { mutableStateOf(initial?.kind ?: DeviceKind.WLED) }
     var showErrors by remember { mutableStateOf(false) }
     val govee = kind == DeviceKind.GOVEE
+    val ha = kind == DeviceKind.HOME_ASSISTANT
 
     val hostError = HostValidator.error(host)
     val httpPortValue = httpPort.toIntOrNull()
@@ -435,7 +451,9 @@ private fun DeviceDialog(
     val outputPortError = if (outputPortValue == null) true else HostValidator.portError(outputPortValue) != null
     val ledValue = ledCount.trim().ifBlank { null }?.toIntOrNull()
     val ledError = ledCount.isNotBlank() && (ledValue == null || HostValidator.ledCountError(ledValue))
-    val valid = hostError == null && (govee || (!httpPortError && !outputPortError && !ledError))
+    val tokenMissing = ha && initial?.kind != DeviceKind.HOME_ASSISTANT && token.isBlank()
+    val valid = hostError == null && !tokenMissing &&
+        (govee || (ha && !httpPortError) || (!httpPortError && !outputPortError && !ledError))
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -459,7 +477,11 @@ private fun DeviceDialog(
                         options = DeviceKind.entries,
                         selected = kind,
                         label = { kindLabel(it) },
-                        onSelected = { kind = it },
+                        onSelected = {
+                            kind = it
+                            if (it == DeviceKind.HOME_ASSISTANT && httpPort == "80") httpPort = "8123"
+                            if (it != DeviceKind.HOME_ASSISTANT && httpPort == "8123") httpPort = "80"
+                        },
                     )
                 }
                 OutlinedTextField(
@@ -486,6 +508,41 @@ private fun DeviceDialog(
                     Text(
                         stringResource(R.string.devices_govee_hint),
                         style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary,
+                    )
+                } else if (ha) {
+                    OutlinedTextField(
+                        value = httpPort,
+                        onValueChange = { httpPort = it.filter { c -> c.isDigit() }.take(5) },
+                        label = { Text(stringResource(R.string.field_http_port)) },
+                        singleLine = true,
+                        isError = showErrors && httpPortError,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    dev.wledambilight.ui.components.SwitchRow(
+                        label = stringResource(R.string.devices_ha_https),
+                        checked = https,
+                        onCheckedChange = { https = it },
+                    )
+                    OutlinedTextField(
+                        value = token,
+                        onValueChange = { token = it.trim().take(512) },
+                        label = { Text(stringResource(R.string.devices_ha_token)) },
+                        placeholder = if (initial?.kind == DeviceKind.HOME_ASSISTANT) {
+                            { Text(stringResource(R.string.devices_ha_token_keep)) }
+                        } else {
+                            null
+                        },
+                        singleLine = true,
+                        isError = showErrors && tokenMissing,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        stringResource(R.string.devices_ha_token_hint),
+                        style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary,
                     )
                 } else {
@@ -572,6 +629,7 @@ private fun DeviceDialog(
                         id = initial?.id ?: UUID.randomUUID().toString(),
                         kind = kind,
                         model = initial?.model,
+                        useHttps = ha && https,
                         name = name.trim(),
                         host = host.trim(),
                         httpPort = httpPortValue ?: 80,
@@ -584,7 +642,7 @@ private fun DeviceDialog(
                         realtimeActive = initial?.realtimeActive,
                         httpReachable = initial?.httpReachable,
                     )
-                    onSave(device)
+                    onSave(device, token)
                 }
             }) {
                 Text(stringResource(R.string.action_save))

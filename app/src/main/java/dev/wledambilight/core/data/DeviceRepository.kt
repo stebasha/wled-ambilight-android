@@ -101,6 +101,7 @@ class DeviceRepository(
 }
 
 fun Throwable.toDiagnosticCode(): DiagnosticCode = when (this) {
+    is dev.wledambilight.core.network.HaUnauthorized -> DiagnosticCode.HA_UNAUTHORIZED
     is WledHttpError.Timeout -> DiagnosticCode.DEVICE_HTTP_TIMEOUT
     is WledHttpError.Unreachable -> DiagnosticCode.DEVICE_HTTP_UNREACHABLE
     is WledHttpError.BadStatus -> DiagnosticCode.DEVICE_HTTP_ERROR

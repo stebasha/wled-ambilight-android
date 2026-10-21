@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.wledambilight.R
 import dev.wledambilight.core.model.AmbilightSettings
+import dev.wledambilight.core.model.BlackFrameBehavior
+import dev.wledambilight.ui.blackBehaviorLabel
+import androidx.compose.foundation.layout.size
 import dev.wledambilight.core.model.PerformanceProfile
 import dev.wledambilight.core.model.SmoothingPreset
 import dev.wledambilight.ui.AppViewModel
@@ -146,6 +149,55 @@ fun ColorScreen(viewModel: AppViewModel) {
             )
         }
 
+        SectionCard(title = stringResource(R.string.color_black_title)) {
+            SliderRow(
+                label = stringResource(R.string.color_black_threshold),
+                valueText = stringResource(R.string.color_brightness_value, draft.blackThreshold),
+                value = draft.blackThreshold.toFloat(),
+                range = 0f..25f,
+                steps = 24,
+                onValueChange = { draft = draft.copy(blackThreshold = it.roundToInt()) },
+                onValueChangeFinished = { commit(draft) },
+            )
+            Text(
+                stringResource(R.string.color_black_threshold_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+            )
+            Text(stringResource(R.string.color_black_behavior), style = MaterialTheme.typography.bodyMedium)
+            ChoiceChips(
+                options = BlackFrameBehavior.entries,
+                selected = draft.blackFrameBehavior,
+                label = { blackBehaviorLabel(it) },
+                onSelected = { commit(draft.copy(blackFrameBehavior = it)) },
+            )
+            if (draft.blackFrameBehavior == BlackFrameBehavior.FALLBACK_COLOR) {
+                Text(stringResource(R.string.color_fallback_color), style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FALLBACK_SWATCHES.forEach { swatch ->
+                        val selected = (draft.fallbackColor or (0xFF shl 24)) == swatch
+                        androidx.compose.material3.Surface(
+                            onClick = { commit(draft.copy(fallbackColor = swatch)) },
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = androidx.compose.ui.graphics.Color(swatch),
+                            border = androidx.compose.foundation.BorderStroke(
+                                if (selected) 3.dp else 1.dp,
+                                if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                            ),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .tvFocusRing(androidx.compose.foundation.shape.RoundedCornerShape(50)),
+                        ) {}
+                    }
+                }
+            }
+            Text(
+                stringResource(R.string.color_black_behavior_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+            )
+        }
+
         SectionCard(title = stringResource(R.string.color_balance)) {
             SliderRow(
                 label = stringResource(R.string.color_balance_red),
@@ -245,3 +297,12 @@ fun ColorScreen(viewModel: AppViewModel) {
 }
 
 private fun format(value: Float): String = String.format(Locale.US, "%.2f", value)
+
+/** Warm amber (default), soft white, blue, violet and red as quick fallback colours. */
+private val FALLBACK_SWATCHES = listOf(
+    AmbilightSettings.DEFAULT_FALLBACK_COLOR,
+    0xFF8C7A60.toInt(),
+    0xFF1E3A8A.toInt(),
+    0xFF4C1D95.toInt(),
+    0xFF7F1D1D.toInt(),
+)

@@ -78,6 +78,7 @@ fun ZonesScreen(viewModel: AppViewModel, onOpenDevices: () -> Unit) {
     val devices by viewModel.devices.collectAsStateWithLifecycle()
     val selected by viewModel.selectedDevice.collectAsStateWithLifecycle()
     val zonePreview by viewModel.zonePreview.collectAsStateWithLifecycle()
+    val haLights by viewModel.haLights.collectAsStateWithLifecycle()
 
     var editing by remember { mutableStateOf<LightZone?>(null) }
     var deleteTarget by remember { mutableStateOf<LightZone?>(null) }
@@ -178,6 +179,8 @@ fun ZonesScreen(viewModel: AppViewModel, onOpenDevices: () -> Unit) {
             config = config,
             selected = selected,
             nextFree = { device -> viewModel.nextFreeOffset(device, excludingZoneId = zone.id) },
+            haLights = haLights,
+            onLoadLights = { viewModel.loadHaLights(it) },
             onDismiss = { editing = null },
             onSave = {
                 viewModel.saveZone(it)
@@ -216,7 +219,7 @@ private fun ZoneCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val isGovee = device?.kind == DeviceKind.GOVEE
+    val isGovee = device != null && device.kind != DeviceKind.WLED
     SectionCard(
         title = zone.name.ifBlank { stringResource(R.string.zone_default_name, index + 1) },
         subtitle = device?.displayName ?: stringResource(R.string.zone_problem_device),
@@ -247,7 +250,7 @@ private fun ZoneCard(
                 }
                 Text(
                     if (isGovee) {
-                        stringResource(R.string.zone_lamp)
+                        zone.entityId?.takeIf { device?.kind == DeviceKind.HOME_ASSISTANT } ?: stringResource(R.string.zone_lamp)
                     } else {
                         val count = zone.ledsFor(DeviceKind.WLED)
                         stringResource(R.string.zone_range, zone.ledOffset, zone.ledOffset + count - 1)
@@ -284,6 +287,7 @@ private fun ZoneCard(
 private fun problemText(kind: PlanProblemKind): Int = when (kind) {
     PlanProblemKind.ZONE_OVERLAP -> R.string.zone_problem_overlap
     PlanProblemKind.ZONE_DEVICE_MISSING -> R.string.zone_problem_device
+    PlanProblemKind.ZONE_NO_ENTITY -> R.string.zone_problem_entity
     else -> R.string.zone_problem_protocol
 }
 
@@ -296,12 +300,14 @@ private fun ZoneDialog(
     config: AmbilightConfig,
     selected: WledDevice?,
     nextFree: (WledDevice) -> Int,
+    haLights: Map<String, List<dev.wledambilight.core.network.HaLight>>,
+    onLoadLights: (WledDevice) -> Unit,
     onDismiss: () -> Unit,
     onSave: (LightZone) -> Unit,
 ) {
     var zone by remember { mutableStateOf(initial) }
     val device = devices.firstOrNull { it.id == zone.deviceId }
-    val isGovee = device?.kind == DeviceKind.GOVEE
+    val isGovee = device != null && device.kind != DeviceKind.WLED
     val defaultName = stringResource(R.string.zone_default_name, index + 1)
 
     // Validate the draft exactly as the engine would.
@@ -336,12 +342,12 @@ private fun ZoneDialog(
                     onSelected = { next ->
                         zone = zone.copy(
                             deviceId = next.id,
-                            mapping = if (next.kind == DeviceKind.GOVEE && zone.mapping == ZoneMapping.PERIMETER) {
+                            mapping = if (next.kind != DeviceKind.WLED && zone.mapping == ZoneMapping.PERIMETER) {
                                 ZoneMapping.SOLID
                             } else {
                                 zone.mapping
                             },
-                            ledOffset = if (next.kind == DeviceKind.GOVEE) 0 else nextFree(next),
+                            ledOffset = if (next.kind != DeviceKind.WLED) 0 else nextFree(next),
                         )
                     },
                 )
@@ -366,12 +372,38 @@ private fun ZoneDialog(
                     )
                     if (isGovee) {
                         Text(
-                            stringResource(R.string.zone_govee_note),
+                            stringResource(
+                                if (device?.kind == DeviceKind.HOME_ASSISTANT) R.string.zone_ha_note else R.string.zone_govee_note,
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary,
                             modifier = Modifier.weight(1f),
                         )
                     }
+                }
+
+                if (device?.kind == DeviceKind.HOME_ASSISTANT) {
+                    Label(R.string.zone_entity)
+                    val lights = haLights[device.id].orEmpty()
+                    if (lights.isEmpty()) {
+                        OutlinedButton(onClick = { onLoadLights(device) }, modifier = Modifier.tvFocusRing()) {
+                            Text(stringResource(R.string.zone_entity_load))
+                        }
+                    } else {
+                        ChoiceChips(
+                            options = lights,
+                            selected = lights.firstOrNull { it.entityId == zone.entityId } ?: lights.first().copy(entityId = ""),
+                            label = { it.name },
+                            onSelected = { zone = zone.copy(entityId = it.entityId, name = zone.name.ifBlank { it.name }) },
+                        )
+                    }
+                    OutlinedTextField(
+                        value = zone.entityId.orEmpty(),
+                        onValueChange = { zone = zone.copy(entityId = it.trim().take(255)) },
+                        label = { Text(stringResource(R.string.zone_entity_manual)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
 
                 when (zone.mapping) {

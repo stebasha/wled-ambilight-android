@@ -23,6 +23,10 @@ import dev.wledambilight.core.imaging.LedLayoutMapper
 import dev.wledambilight.core.imaging.SmoothingParams
 import dev.wledambilight.core.imaging.VideoFrame
 import dev.wledambilight.core.model.AmbilightSettings
+import dev.wledambilight.core.model.BlackFrameBehavior
+import dev.wledambilight.core.data.toDiagnosticCode
+import dev.wledambilight.core.network.HomeAssistantClient
+import dev.wledambilight.core.network.HomeAssistantOutput
 import dev.wledambilight.core.model.DiagnosticCode
 import dev.wledambilight.core.model.LedLayout
 import dev.wledambilight.core.model.OutputProtocol
@@ -98,6 +102,7 @@ class AmbilightEngine(
     context: Context,
     private val diagnostics: DiagnosticsRepository,
     private val http: WledHttpClient = WledHttpClient(),
+    private val haClient: HomeAssistantClient = HomeAssistantClient(),
 ) {
     private val appContext = context.applicationContext
     private val displayManager = appContext.getSystemService(DisplayManager::class.java)
@@ -130,6 +135,7 @@ class AmbilightEngine(
         plan: SessionPlan,
         previewLayout: LedLayout,
         settings: AmbilightSettings,
+        haTokens: Map<String, String> = emptyMap(),
     ): Boolean = startMutex.withLock {
         val myGeneration = synchronized(lock) { ++generation }
         closeSession(StopReason.USER)
@@ -153,12 +159,33 @@ class AmbilightEngine(
             throw cancelled
         }
         val goveeTargets = plan.govee.map { GoveeTarget(it, GoveeOutput(it.device.host)) }
-        if (wledTargets.isEmpty() && goveeTargets.isEmpty() && !demo) {
+        val haTargets = plan.ha.mapNotNull { haPlan ->
+            val token = haTokens[haPlan.device.id]
+            if (token.isNullOrBlank()) {
+                diagnostics.report(DiagnosticCode.HA_UNAUTHORIZED, "${haPlan.device.displayName}: no access token")
+                return@mapNotNull null
+            }
+            HaTarget(
+                haPlan,
+                HomeAssistantOutput(
+                    client = haClient,
+                    host = haPlan.device.host,
+                    port = haPlan.device.httpPort,
+                    https = haPlan.device.useHttps,
+                    token = token,
+                    entityId = haPlan.entityId,
+                    onError = { error ->
+                        diagnostics.report(error.toDiagnosticCode(), "${haPlan.entityId}: ${error.javaClass.simpleName}")
+                    },
+                ),
+            )
+        }
+        if (wledTargets.isEmpty() && goveeTargets.isEmpty() && haTargets.isEmpty() && !demo) {
             return@withLock abortStart(projection, DiagnosticCode.DEVICE_NOT_FOUND, plan.wled.joinToString { it.device.host })
         }
 
         if (!stillCurrent(myGeneration)) {
-            closeTargets(wledTargets, goveeTargets, release = false)
+            closeTargets(wledTargets, goveeTargets, release = false); haTargets.forEach { it.output.close() }
             projection?.let { runCatching { it.stop() } }
             return@withLock false
         }
@@ -172,7 +199,7 @@ class AmbilightEngine(
         }
         val startResult = frameSource.start()
         if (startResult.isFailure) {
-            closeTargets(wledTargets, goveeTargets, release = false)
+            closeTargets(wledTargets, goveeTargets, release = false); haTargets.forEach { it.output.close() }
             projection?.let { runCatching { it.stop() } }
             return@withLock failed(DiagnosticCode.CAPTURE_FAILED, startResult.exceptionOrNull()?.message)
         }
@@ -181,12 +208,13 @@ class AmbilightEngine(
             source = frameSource,
             wled = wledTargets,
             govee = goveeTargets,
-            wifiLock = if (wledTargets.isNotEmpty() || goveeTargets.isNotEmpty()) acquireWifiLock() else null,
+            ha = haTargets,
+            wifiLock = if (wledTargets.isNotEmpty() || goveeTargets.isNotEmpty() || haTargets.isNotEmpty()) acquireWifiLock() else null,
             cadence = FrameCadenceLimiter(sanitized.effectiveFps),
             startedAt = System.currentTimeMillis(),
             analysisWidth = size.width,
             analysisHeight = size.height,
-            protocolLabel = protocolLabel(wledTargets, goveeTargets, demo),
+            protocolLabel = protocolLabel(wledTargets, goveeTargets, haTargets, demo),
             ledCount = plan.totalLeds,
             previewZones = LedLayoutMapper.zones(previewLayout),
             demo = demo,
@@ -203,6 +231,7 @@ class AmbilightEngine(
             return@withLock false
         }
 
+        haTargets.forEach { it.output.start(scope) }
         goveeTargets.forEach { target ->
             runCatching { target.output.prepare() }
                 .onFailure { diagnostics.report(DiagnosticCode.UDP_SEND_FAILED, "govee ${target.plan.device.host}") }
@@ -255,18 +284,19 @@ class AmbilightEngine(
 
         val mainName = wledTargets.firstOrNull()?.device?.displayName
             ?: goveeTargets.firstOrNull()?.plan?.device?.displayName
+            ?: haTargets.firstOrNull()?.plan?.device?.displayName
             ?: "Demo"
         _state.value = EngineState.Running(
             deviceName = mainName,
             protocolLabel = active.protocolLabel,
             startedAtMillis = active.startedAt,
             demo = demo,
-            targets = wledTargets.size + goveeTargets.size,
+            targets = wledTargets.size + goveeTargets.size + haTargets.size,
         )
         diagnostics.report(
             DiagnosticCode.SESSION_STARTED,
             "${if (demo) "demo " else ""}$mainName ${active.protocolLabel} ${size.width}x${size.height}, " +
-                "${wledTargets.size} WLED, ${goveeTargets.size} Govee",
+                "${wledTargets.size} WLED, ${goveeTargets.size} Govee, ${haTargets.size} Home Assistant",
         )
         true
     }
@@ -302,12 +332,25 @@ class AmbilightEngine(
         smoothingParams: SmoothingParams,
     ) {
         val startedAnalysis = SystemClock.elapsedRealtimeNanos()
+        val now = SystemClock.elapsedRealtime()
         val main = analyzer.analyzeZones(frame, active.previewZones, settings)
-        val mainSmoothed = active.previewSmoother.smooth(main.colors, smoothingParams)
+        val black = active.previewZones.isNotEmpty() && main.blackFrame
+        trackBlackFrames(active, black, now)
+        val blackLong = !active.demo && black && active.blackSince > 0L && now - active.blackSince >= BLACK_FALLBACK_MS
+        val behavior = if (blackLong) settings.blackFrameBehavior else BlackFrameBehavior.OFF
+        if (behavior == BlackFrameBehavior.KEEP_LAST && active.frames > 0) {
+            // Hold the last picture: outputs keep their colours (WLED via keep-alive resends).
+            return
+        }
+        val fallback = if (behavior == BlackFrameBehavior.FALLBACK_COLOR) settings.fallbackColor else null
+        val mainSmoothed = active.previewSmoother.smooth(
+            if (fallback != null) IntArray(main.colors.size) { fallback } else main.colors,
+            smoothingParams,
+        )
 
         for (target in active.wled) {
             for (span in target.spans) {
-                val raw = when (val source = span.plan.source) {
+                val raw = if (fallback != null) IntArray(span.plan.ledCount) { scaleColor(fallback, span.plan.brightnessScale) } else when (val source = span.plan.source) {
                     is SpanSource.Zones -> if (span.plan.key == OutputPlanner.MAIN_KEY &&
                         span.plan.brightnessScale >= 0.999f && source.zones == active.previewZones
                     ) {
@@ -324,13 +367,19 @@ class AmbilightEngine(
             }
         }
         val goveeColors = active.govee.map { target ->
-            val color = analyzer.regionColor(frame, target.plan.region, settings, target.plan.brightnessScale)
+            val color = fallback?.let { scaleColor(it, target.plan.brightnessScale) }
+                ?: analyzer.regionColor(frame, target.plan.region, settings, target.plan.brightnessScale)
             target.smoother.smooth(intArrayOf(color), smoothingParams)[0].also { target.last = it }
+        }
+        for (target in active.ha) {
+            val color = fallback?.let { scaleColor(it, target.plan.brightnessScale) }
+                ?: analyzer.regionColor(frame, target.plan.region, settings, target.plan.brightnessScale)
+            target.last = target.smoother.smooth(intArrayOf(color), smoothingParams)[0]
+            target.output.offer(target.last)
         }
         val analysisNanos = SystemClock.elapsedRealtimeNanos() - startedAnalysis
 
         val startedSend = SystemClock.elapsedRealtimeNanos()
-        val now = SystemClock.elapsedRealtime()
         for (target in active.wled) {
             if (!target.readyAt(now)) continue
             val packets = target.buildPackets()
@@ -353,7 +402,6 @@ class AmbilightEngine(
         active.analysisMs = analysisNanos / 1_000_000f
         active.sendMs = (SystemClock.elapsedRealtimeNanos() - startedSend) / 1_000_000f
         publishPreview(active, mainSmoothed, now)
-        trackBlackFrames(active, main.blackFrame, now)
         if (active.allTargetsDown()) {
             failSession(active, DiagnosticCode.NETWORK_LOST, "all outputs failed repeatedly")
         }
@@ -405,7 +453,8 @@ class AmbilightEngine(
             delay(1000)
             val now = SystemClock.elapsedRealtime()
             val elapsedSeconds = ((now - lastTick).coerceAtLeast(1L)) / 1000f
-            val packets = active.wled.sumOf { it.output.packetsSent } + active.govee.sumOf { it.output.packetsSent }
+            val packets = active.wled.sumOf { it.output.packetsSent } + active.govee.sumOf { it.output.packetsSent } +
+                active.ha.sumOf { it.output.commandsSent }
             val fps = (active.frames - lastFrames) / elapsedSeconds
             val packetsPerSecond = (packets - lastPackets) / elapsedSeconds
             lastFrames = active.frames
@@ -425,8 +474,9 @@ class AmbilightEngine(
                 ledCount = active.ledCount,
                 protocolLabel = active.protocolLabel,
                 startedEpochMillis = active.startedAt,
-                outputs = active.wled.size + active.govee.size,
-                outputsDown = active.wled.count { !it.readyAt(now) } + active.govee.count { !it.readyAt(now) },
+                outputs = active.wled.size + active.govee.size + active.ha.size,
+                outputsDown = active.wled.count { !it.readyAt(now) } + active.govee.count { !it.readyAt(now) } +
+                    active.ha.count { it.output.failing },
                 demo = active.demo,
             )
         }
@@ -443,6 +493,7 @@ class AmbilightEngine(
             }
         }
         for (target in active.govee) zones[target.plan.key] = intArrayOf(target.last)
+        for (target in active.ha) zones[target.plan.key] = intArrayOf(target.last)
         _zonePreview.value = zones
     }
 
@@ -549,6 +600,7 @@ class AmbilightEngine(
         }
         runCatching { active.source.close() }
         closeTargets(active.wled, active.govee, release)
+        active.ha.forEach { runCatching { it.output.close() } }
     }
 
     private fun failSession(active: Session, code: DiagnosticCode, detail: String?) {
@@ -587,10 +639,11 @@ class AmbilightEngine(
         generation == generationValue
     }
 
-    private fun protocolLabel(wled: List<WledTarget>, govee: List<GoveeTarget>, demo: Boolean): String {
+    private fun protocolLabel(wled: List<WledTarget>, govee: List<GoveeTarget>, ha: List<HaTarget>, demo: Boolean): String {
         val parts = buildList {
             wled.map { protocolLabel(it.device) }.distinct().forEach { add(it) }
             if (govee.isNotEmpty()) add("Govee LAN")
+            if (ha.isNotEmpty()) add("Home Assistant")
         }
         return when {
             parts.isEmpty() -> if (demo) "Demo" else "—"
@@ -684,6 +737,11 @@ class AmbilightEngine(
         }
     }
 
+    private class HaTarget(val plan: HaPlan, val output: HomeAssistantOutput) {
+        val smoother = ColorSmoother()
+        @Volatile var last: Int = 0xFF000000.toInt()
+    }
+
     private class GoveeTarget(val plan: GoveePlan, val output: GoveeOutput) : TargetHealth() {
         val smoother = ColorSmoother()
         @Volatile var last: Int = 0xFF000000.toInt()
@@ -693,6 +751,7 @@ class AmbilightEngine(
         val source: FrameSource,
         val wled: List<WledTarget>,
         val govee: List<GoveeTarget>,
+        val ha: List<HaTarget>,
         val wifiLock: WifiManager.WifiLock?,
         val cadence: FrameCadenceLimiter,
         val startedAt: Long,
@@ -731,6 +790,18 @@ class AmbilightEngine(
         private const val MAX_BACKOFF_MS = 15_000L
         private const val ALL_DOWN_BACKOFF_MS = 4_000L
         private const val BLACK_FRAME_WARNING_MS = 2000L
+
+        /** A black picture must last this long before the black-frame behaviour kicks in (scene cuts). */
+        private const val BLACK_FALLBACK_MS = 1500L
+
+        private fun scaleColor(argb: Int, scale: Float): Int {
+            if (scale >= 0.999f) return argb
+            val s = scale.coerceIn(0f, 1f)
+            val r = (((argb shr 16) and 0xFF) * s).toInt()
+            val g = (((argb shr 8) and 0xFF) * s).toInt()
+            val b = ((argb and 0xFF) * s).toInt()
+            return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        }
         private const val SEND_TIMEOUT_MS = 2000L
         private const val KEEPALIVE_CHECK_MS = 250L
         private const val KEEPALIVE_INTERVAL_MS = 1000L

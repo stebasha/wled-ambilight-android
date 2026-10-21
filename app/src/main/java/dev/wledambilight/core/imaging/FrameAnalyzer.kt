@@ -79,11 +79,12 @@ class FrameAnalyzer(private val maxSamplesPerZone: Int = 64) {
             raw[i * 3 + 2] = sample[2]
         }
 
-        if (settings.blackBarCompensation) compensateBlackBars(raw, zones.size)
+        val blackLevel = blackLevelOf(settings)
+        if (settings.blackBarCompensation) compensateBlackBars(raw, zones.size, blackLevel)
 
         var black = true
         for (i in zones.indices) {
-            if (ColorMath.luma(raw[i * 3], raw[i * 3 + 1], raw[i * 3 + 2]) >= BLACK_LEVEL) {
+            if (ColorMath.luma(raw[i * 3], raw[i * 3 + 1], raw[i * 3 + 2]) >= blackLevel) {
                 black = false
                 break
             }
@@ -94,8 +95,13 @@ class FrameAnalyzer(private val maxSamplesPerZone: Int = 64) {
             sample[0] = raw[i * 3]
             sample[1] = raw[i * 3 + 1]
             sample[2] = raw[i * 3 + 2]
-            ColorMath.adjust(sample, adjusted)
-            ColorMath.toArgb(sample[0], sample[1], sample[2])
+            if (blackLevel > 0f && ColorMath.luma(sample[0], sample[1], sample[2]) < blackLevel) {
+                // Below the black threshold: off, not a dim muddy glow (letterbox, dark scenes).
+                OFF_COLOR
+            } else {
+                ColorMath.adjust(sample, adjusted)
+                ColorMath.toArgb(sample[0], sample[1], sample[2])
+            }
         }
         return AnalysisResult(out, sampled, black)
     }
@@ -122,6 +128,8 @@ class FrameAnalyzer(private val maxSamplesPerZone: Int = 64) {
         )
         val sample = FloatArray(3)
         sampleZone(frame, rect, 0f, sample, samplesBudget = REGION_SAMPLES)
+        val blackLevel = blackLevelOf(settings)
+        if (blackLevel > 0f && ColorMath.luma(sample[0], sample[1], sample[2]) < blackLevel) return OFF_COLOR
         ColorMath.adjust(sample, settings.withScaledBrightness(brightnessScale))
         return ColorMath.toArgb(sample[0], sample[1], sample[2])
     }
@@ -263,15 +271,16 @@ class FrameAnalyzer(private val maxSamplesPerZone: Int = 64) {
      * Suppresses dark letterbox/pillarbox bars: a dark zone between two clearly lit neighbours is
      * replaced with their average. A genuinely black scene has no lit neighbours and stays black.
      */
-    private fun compensateBlackBars(zones: FloatArray, count: Int) {
+    private fun compensateBlackBars(zones: FloatArray, count: Int, blackLevel: Float) {
         if (count < 3) return
         val snapshot = zones.copyOf(count * 3)
         fun luma(i: Int) = ColorMath.luma(snapshot[i * 3], snapshot[i * 3 + 1], snapshot[i * 3 + 2])
         for (i in 0 until count) {
-            if (luma(i) >= BLACK_LEVEL) continue
+            if (luma(i) >= maxOf(blackLevel, BLACK_LEVEL)) continue
             val previous = (i - 1 + count) % count
             val next = (i + 1) % count
-            if (luma(previous) > NEIGHBOUR_LEVEL && luma(next) > NEIGHBOUR_LEVEL) {
+            val lit = maxOf(NEIGHBOUR_LEVEL, blackLevel * 2f)
+            if (luma(previous) > lit && luma(next) > lit) {
                 for (c in 0..2) {
                     zones[i * 3 + c] = (snapshot[previous * 3 + c] + snapshot[next * 3 + c]) * 0.5f
                 }
@@ -313,8 +322,12 @@ class FrameAnalyzer(private val maxSamplesPerZone: Int = 64) {
     private fun AmbilightSettings.withScaledBrightness(scale: Float): AmbilightSettings =
         if (scale >= 0.999f) this else copy(brightness = (brightness * scale.coerceIn(0f, 1f)).roundToInt())
 
+    /** User black threshold (percent luma) as a 0..1 level. */
+    private fun blackLevelOf(settings: AmbilightSettings): Float = settings.blackThreshold.coerceIn(0, 25) / 100f
+
     companion object {
         const val BLACK_LEVEL = 0.02f
+        private const val OFF_COLOR = 0xFF000000.toInt()
         const val NEIGHBOUR_LEVEL = 0.06f
         private const val REGION_SAMPLES = 1024
     }

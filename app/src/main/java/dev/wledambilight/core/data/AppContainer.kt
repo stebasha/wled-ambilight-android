@@ -23,5 +23,12 @@ class AppContainer(context: Context) {
     val discovery = WledDiscovery(appContext, diagnostics)
     val goveeDiscovery = GoveeDiscovery(appContext, diagnostics)
     val scanner = SubnetScanner()
-    val engine = AmbilightEngine(appContext, diagnostics, httpClient)
+    val haClient = dev.wledambilight.core.network.HomeAssistantClient()
+    val engine = AmbilightEngine(appContext, diagnostics, httpClient, haClient)
+
+    /** Tokens of the Home Assistant servers that zones use; read just before a session starts. */
+    suspend fun haTokens(devices: List<dev.wledambilight.core.model.WledDevice>): Map<String, String> =
+        devices.filter { it.kind == dev.wledambilight.core.model.DeviceKind.HOME_ASSISTANT }
+            .mapNotNull { device -> settingsRepository.haToken(device.id)?.let { device.id to it } }
+            .toMap()
 }

@@ -117,4 +117,27 @@
     <string name="settings_profile_invalid">В буфере обмена нет корректного профиля</string>
 
     <string name="onboarding_try_demo">Попробовать демо</string>
-</resources>
+    <string name="kind_home_assistant">Home Assistant</string>
+    <string name="devices_ha_token">Долгосрочный токен доступа</string>
+    <string name="devices_ha_token_keep">Оставьте пустым, чтобы сохранить прежний токен</string>
+    <string name="devices_ha_token_hint">Home Assistant → профиль → Безопасность → Долгосрочные токены доступа. Токен хранится только на этом устройстве, не экспортируется и не пишется в журнал.</string>
+    <string name="devices_ha_https">Использовать HTTPS</string>
+    <string name="devices_ha_card">Home Assistant · REST API</string>
+    <string name="devices_ha_lights">Цветных светильников: %1$d</string>
+    <string name="zone_entity">Светильник</string>
+    <string name="zone_entity_load">Загрузить светильники</string>
+    <string name="zone_entity_manual">ID сущности (light.…)</string>
+    <string name="zone_ha_note">Светильники Home Assistant обновляются не чаще 4 раз в секунду с коротким переходом, один цвет на светильник. Лампы Zigbee и облачные могут отставать от картинки.</string>
+    <string name="zone_problem_entity">Выберите светильник Home Assistant для этой зоны</string>
+    <string name="diag_ha_ok">Home Assistant ответил</string>
+    <string name="diag_ha_unauthorized">Home Assistant: доступ запрещён</string>
+    <string name="diag_hint_ha_unauthorized">Проверьте долгосрочный токен (Устройства → изменить Home Assistant) и что у пользователя есть права на светильники.</string>
+    <string name="color_black_title">Чёрная картинка</string>
+    <string name="color_black_threshold">Порог чёрного</string>
+    <string name="color_black_threshold_hint">Зоны темнее порога выключаются, а не светятся тусклым грязным цветом (чёрные полосы, тёмные сцены).</string>
+    <string name="color_black_behavior">Когда вся картинка чёрная</string>
+    <string name="color_black_behavior_hint">Срабатывает через 1,5 с чёрного: защищённое (DRM) видео, чёрный экран или пауза.</string>
+    <string name="black_off">Выключить</string>
+    <string name="black_keep">Держать последние цвета</string>
+    <string name="black_fallback">Резервный цвет</string>
+    <string name="color_fallback_color">Резервный цвет</string></resources>

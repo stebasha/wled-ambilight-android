@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WLED controllers and Home Assistant on a LAN speak plain HTTP and are addressed by IP, which a
+  domain-config cannot enumerate. Cleartext is therefore allowed; the app only talks to addresses the
+  user entered or discovered on the local network and never sends frames or credentials to the cloud.
+  HTTPS (e.g. a Home Assistant URL with TLS) keeps using the system trust store.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

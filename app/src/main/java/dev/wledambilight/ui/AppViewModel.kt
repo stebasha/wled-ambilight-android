@@ -22,6 +22,7 @@ import dev.wledambilight.core.model.ZoneMapping
 import dev.wledambilight.core.network.NetworkUtils
 import dev.wledambilight.core.network.ScanHit
 import dev.wledambilight.core.network.SubnetPlanner
+import dev.wledambilight.core.network.HaLight
 import dev.wledambilight.core.network.WledPreset
 import dev.wledambilight.core.protocol.GoveeScanResult
 import dev.wledambilight.core.protocol.TestPatternSender
@@ -205,16 +206,58 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** WLED: `/json/info`. Govee has no request/response API without listening, so it gets a test colour. */
+    /**
+     * WLED: `/json/info`. Govee has no request/response API without listening, so it gets a test
+     * colour. Home Assistant: `GET /api/` with the stored token, then the light list is refreshed.
+     */
     private suspend fun probeInternal(device: WledDevice) {
-        if (device.kind == DeviceKind.GOVEE) {
-            testSender.send(device, intArrayOf(TEST_COLOR), report = true)
-        } else {
-            deviceRepository.probe(device)
+        when (device.kind) {
+            DeviceKind.GOVEE -> testSender.send(device, intArrayOf(TEST_COLOR), report = true)
+            DeviceKind.HOME_ASSISTANT -> {
+                val token = settings.haToken(device.id)
+                if (token.isNullOrBlank()) {
+                    diagnostics.report(DiagnosticCode.HA_UNAUTHORIZED, "${device.displayName}: no access token")
+                    return
+                }
+                try {
+                    container.haClient.check(device.host, device.httpPort, device.useHttps, token)
+                    val lights = container.haClient.colorLights(device.host, device.httpPort, device.useHttps, token)
+                    _haLights.update { it + (device.id to lights) }
+                    diagnostics.report(DiagnosticCode.HA_OK, "${device.host}: ${lights.size} colour lights")
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    diagnostics.report(error.toDiagnosticCode(), "${device.host} ${error.javaClass.simpleName}")
+                }
+            }
+            DeviceKind.WLED -> deviceRepository.probe(device)
+        }
+    }
+
+    private val _haLights = MutableStateFlow<Map<String, List<HaLight>>>(emptyMap())
+    val haLights: StateFlow<Map<String, List<HaLight>>> = _haLights.asStateFlow()
+
+    fun loadHaLights(device: WledDevice) {
+        if (device.kind != DeviceKind.HOME_ASSISTANT) return
+        viewModelScope.launch { probeInternal(device) }
+    }
+
+    /** Saves a Home Assistant server; an empty [token] keeps the stored one. */
+    fun saveHaDevice(device: WledDevice, token: String) {
+        viewModelScope.launch {
+            if (token.isNotBlank()) settings.saveHaToken(device.id, token)
+            _busyDeviceId.value = device.id
+            try {
+                val saved = deviceRepository.save(device)
+                probeInternal(saved)
+            } finally {
+                _busyDeviceId.value = null
+            }
         }
     }
 
     fun sendHttpColorTest(device: WledDevice) {
+        if (device.kind == DeviceKind.HOME_ASSISTANT) return
         viewModelScope.launch {
             if (device.kind == DeviceKind.GOVEE) {
                 testSender.send(device, intArrayOf(TEST_COLOR), report = true)
@@ -281,6 +324,21 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     fun testZone(zone: LightZone) {
         val device = devices.value.firstOrNull { it.id == zone.deviceId } ?: return
         val count = zone.ledsFor(device.kind).coerceAtLeast(1)
+        if (device.kind == DeviceKind.HOME_ASSISTANT) {
+            val entity = zone.entityId ?: return
+            viewModelScope.launch {
+                val token = settings.haToken(device.id) ?: return@launch
+                try {
+                    container.haClient.setColor(device.host, device.httpPort, device.useHttps, token, entity, TEST_COLOR, 0f)
+                    diagnostics.report(DiagnosticCode.HA_OK, entity)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    diagnostics.report(error.toDiagnosticCode(), entity)
+                }
+            }
+            return
+        }
         viewModelScope.launch {
             testSender.send(device, IntArray(count) { TEST_COLOR }, report = true, ledOffset = zone.ledOffset)
         }
@@ -300,8 +358,8 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     fun newZone(device: WledDevice): LightZone = LightZone(
         name = "",
         deviceId = device.id,
-        mapping = if (device.kind == DeviceKind.GOVEE) ZoneMapping.SOLID else ZoneMapping.EDGE,
-        ledOffset = if (device.kind == DeviceKind.GOVEE) 0 else nextFreeOffset(device),
+        mapping = if (device.kind == DeviceKind.WLED) ZoneMapping.EDGE else ZoneMapping.SOLID,
+        ledOffset = if (device.kind == DeviceKind.WLED) nextFreeOffset(device) else 0,
     )
 
     // ---------------------------------------------------------------------------------------------
@@ -317,7 +375,7 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val current = config.value
             val plan = OutputPlanner.plan(current, selectedDevice.value, devices.value)
-            engine.start(SessionSource.Demo, plan, current.layout, current.settings)
+            engine.start(SessionSource.Demo, plan, current.layout, current.settings, container.haTokens(devices.value))
         }
     }
 
@@ -535,6 +593,7 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     fun selectedProtocolLabel(device: WledDevice?): String = when {
         device?.kind == DeviceKind.GOVEE -> "Govee LAN"
+        device?.kind == DeviceKind.HOME_ASSISTANT -> "Home Assistant"
         device?.protocol == OutputProtocol.WLED_UDP -> "WLED UDP ${device.wledUdpMode.name}"
         else -> "DDP"
     }

@@ -117,4 +117,27 @@
     <string name="settings_profile_invalid">The clipboard does not contain a valid profile</string>
 
     <string name="onboarding_try_demo">Try the demo</string>
-</resources>
+    <string name="kind_home_assistant">Home Assistant</string>
+    <string name="devices_ha_token">Long-lived access token</string>
+    <string name="devices_ha_token_keep">Leave empty to keep the saved token</string>
+    <string name="devices_ha_token_hint">Home Assistant → your profile → Security → Long-lived access tokens. The token is stored only on this device and is never exported or logged.</string>
+    <string name="devices_ha_https">Use HTTPS</string>
+    <string name="devices_ha_card">Home Assistant · REST API</string>
+    <string name="devices_ha_lights">%1$d colour lights</string>
+    <string name="zone_entity">Light</string>
+    <string name="zone_entity_load">Load lights</string>
+    <string name="zone_entity_manual">Entity id (light.…)</string>
+    <string name="zone_ha_note">Home Assistant lights get at most 4 updates per second with a short transition, one colour per light. Zigbee and cloud bulbs can lag behind the picture.</string>
+    <string name="zone_problem_entity">Choose a Home Assistant light for this zone</string>
+    <string name="diag_ha_ok">Home Assistant answered</string>
+    <string name="diag_ha_unauthorized">Home Assistant: access denied</string>
+    <string name="diag_hint_ha_unauthorized">Check the long-lived access token (Devices → edit the Home Assistant entry) and that the user may control the lights.</string>
+    <string name="color_black_title">Black picture</string>
+    <string name="color_black_threshold">Black threshold</string>
+    <string name="color_black_threshold_hint">Zones darker than this are switched off instead of glowing dim and muddy (letterbox bars, dark scenes).</string>
+    <string name="color_black_behavior">When the whole picture is black</string>
+    <string name="color_black_behavior_hint">Applies after 1.5 s of black: protected (DRM) video, a black screen or a paused app.</string>
+    <string name="black_off">Turn off</string>
+    <string name="black_keep">Keep last colours</string>
+    <string name="black_fallback">Fallback colour</string>
+    <string name="color_fallback_color">Fallback colour</string></resources>

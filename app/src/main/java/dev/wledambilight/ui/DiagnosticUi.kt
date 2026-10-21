@@ -49,6 +49,8 @@ fun DiagnosticCode.titleRes(): Int = when (this) {
     DiagnosticCode.ZONE_SKIPPED -> R.string.diag_zone_skipped
     DiagnosticCode.GOVEE_TEST_SENT -> R.string.diag_govee_test_sent
     DiagnosticCode.WLED_CONTROL_SENT -> R.string.diag_wled_control_sent
+    DiagnosticCode.HA_OK -> R.string.diag_ha_ok
+    DiagnosticCode.HA_UNAUTHORIZED -> R.string.diag_ha_unauthorized
 }
 
 @StringRes
@@ -69,6 +71,7 @@ fun DiagnosticCode.hintRes(): Int? = when (this) {
     DiagnosticCode.DISCOVERY_UNAVAILABLE -> R.string.diag_hint_discovery_unavailable
     DiagnosticCode.REALTIME_OCCUPIED -> R.string.diag_hint_realtime_occupied
     DiagnosticCode.ZONE_SKIPPED -> R.string.diag_hint_zone_skipped
+    DiagnosticCode.HA_UNAUTHORIZED -> R.string.diag_hint_ha_unauthorized
     else -> null
 }
 

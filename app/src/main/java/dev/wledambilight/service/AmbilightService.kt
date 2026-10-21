@@ -108,6 +108,7 @@ class AmbilightService : Service() {
                 plan,
                 config.layout,
                 config.settings,
+                container.haTokens(devices),
             )
             if (!started) {
                 stopForegroundCompat()

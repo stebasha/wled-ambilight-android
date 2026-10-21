@@ -41,7 +41,17 @@ data class GoveePlan(
     val brightnessScale: Float,
 )
 
+/** One Home Assistant light entity fed with the average colour of [region]. */
+data class HaPlan(
+    val key: String,
+    val device: WledDevice,
+    val entityId: String,
+    val region: ScreenRegion,
+    val brightnessScale: Float,
+)
+
 enum class PlanProblemKind {
+    ZONE_NO_ENTITY,
     MAIN_LAYOUT_INVALID,
     ZONE_DEVICE_MISSING,
     ZONE_EMPTY,
@@ -58,10 +68,11 @@ data class SessionPlan(
     val wled: List<WledPlan>,
     val govee: List<GoveePlan>,
     val problems: List<PlanProblem>,
+    val ha: List<HaPlan> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = wled.isEmpty() && govee.isEmpty()
-    val totalLeds: Int get() = wled.sumOf { plan -> plan.spans.sumOf { it.ledCount } } + govee.size
-    val targetCount: Int get() = wled.size + govee.size
+    val isEmpty: Boolean get() = wled.isEmpty() && govee.isEmpty() && ha.isEmpty()
+    val totalLeds: Int get() = wled.sumOf { plan -> plan.spans.sumOf { it.ledCount } } + govee.size + ha.size
+    val targetCount: Int get() = wled.size + govee.size + ha.size
 }
 
 /**
@@ -78,6 +89,7 @@ object OutputPlanner {
         val spansByDevice = LinkedHashMap<String, MutableList<SpanPlan>>()
         val deviceById = devices.associateBy { it.id }.toMutableMap()
         val govee = ArrayList<GoveePlan>()
+        val ha = ArrayList<HaPlan>()
 
         if (config.mainStripEnabled && mainDevice != null) {
             deviceById[mainDevice.id] = mainDevice
@@ -102,6 +114,15 @@ object OutputPlanner {
             val scale = zone.brightness.coerceIn(0, 100) / 100f
             if (device.kind == DeviceKind.GOVEE) {
                 govee += GoveePlan(zone.id, device, goveeRegion(zone), scale)
+                continue
+            }
+            if (device.kind == DeviceKind.HOME_ASSISTANT) {
+                val entity = zone.entityId
+                if (entity.isNullOrBlank() || !entity.startsWith("light.")) {
+                    problems += PlanProblem(PlanProblemKind.ZONE_NO_ENTITY, zone.id, zone.name)
+                } else {
+                    ha += HaPlan(zone.id, device, entity, goveeRegion(zone), scale)
+                }
                 continue
             }
             val span = spanFor(zone, scale)
@@ -129,7 +150,7 @@ object OutputPlanner {
             val accepted = checkProtocolLimits(device, spans.sortedBy { it.ledOffset }, problems)
             if (accepted.isNotEmpty()) wled += WledPlan(device, accepted)
         }
-        return SessionPlan(wled, govee, problems)
+        return SessionPlan(wled, govee, problems, ha)
     }
 
     private fun spanFor(zone: LightZone, scale: Float): SpanPlan? = when (zone.mapping) {
@@ -150,7 +171,7 @@ object OutputPlanner {
         )
     }
 
-    /** Govee shows one colour; an edge zone pointed at a lamp averages that edge. */
+    /** Single-colour lamps (Govee, Home Assistant): an edge zone averages that edge. */
     private fun goveeRegion(zone: LightZone): ScreenRegion = when (zone.mapping) {
         ZoneMapping.SOLID -> zone.region
         ZoneMapping.PERIMETER -> ScreenRegion.FULL

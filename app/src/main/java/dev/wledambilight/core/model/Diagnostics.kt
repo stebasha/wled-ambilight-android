@@ -49,6 +49,8 @@ enum class DiagnosticCode(val defaultSeverity: DiagnosticSeverity) {
     ZONE_SKIPPED(DiagnosticSeverity.WARNING),
     GOVEE_TEST_SENT(DiagnosticSeverity.INFO),
     WLED_CONTROL_SENT(DiagnosticSeverity.INFO),
+    HA_OK(DiagnosticSeverity.INFO),
+    HA_UNAUTHORIZED(DiagnosticSeverity.ERROR),
 }
 
 data class DiagnosticEvent(

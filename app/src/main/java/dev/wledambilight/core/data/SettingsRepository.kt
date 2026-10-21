@@ -103,6 +103,7 @@ class SettingsRepository(
             val current = codec.decodeDevices(prefs[Keys.DEVICES]).value
             val next = current.filterNot { it.id == id }
             prefs[Keys.DEVICES] = codec.encodeDevices(next)
+            prefs.remove(tokenKey(id))
             // Zones that pointed at the removed device are kept (so the user sees them) but disabled.
             val config = codec.decodeConfig(prefs[Keys.CONFIG]).value
             if (config.zones.any { it.deviceId == id }) {
@@ -125,6 +126,22 @@ class SettingsRepository(
             if (current.any { it.id == id && it.isWled }) prefs[Keys.SELECTED_DEVICE] = id
         }
     }
+
+    /**
+     * Home Assistant long-lived access tokens are kept apart from the device list, so neither the
+     * device JSON, an exported profile nor the diagnostics report can contain them. App data is
+     * excluded from backups (`allowBackup=false`, data extraction rules).
+     */
+    suspend fun haToken(deviceId: String): String? = preferences.first()[tokenKey(deviceId)]
+
+    suspend fun saveHaToken(deviceId: String, token: String) {
+        store.edit { prefs ->
+            val trimmed = token.trim()
+            if (trimmed.isEmpty()) prefs.remove(tokenKey(deviceId)) else prefs[tokenKey(deviceId)] = trimmed
+        }
+    }
+
+    private fun tokenKey(deviceId: String) = stringPreferencesKey("ha_token_$deviceId")
 
     suspend fun setOnboardingComplete(complete: Boolean) {
         store.edit { prefs -> prefs[Keys.ONBOARDING_COMPLETE] = complete }
