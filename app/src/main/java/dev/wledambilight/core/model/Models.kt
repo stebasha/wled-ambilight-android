@@ -281,6 +281,20 @@ enum class PerformanceProfile {
     LOW_LATENCY,
 }
 
+/**
+ * Long side of the capture/analysis buffer. The short side follows the screen aspect, so on a
+ * 16:9 TV the choices are 160×90, 240×135, 320×180 and 480×270.
+ */
+@Serializable
+enum class CaptureResolution(val longSide: Int) {
+    /** 160 px for strips up to ~150 LEDs, 320 px above that; never above the performance profile. */
+    AUTO(0),
+    R160(160),
+    R240(240),
+    R320(320),
+    R480(480),
+}
+
 @Serializable
 enum class AppTheme {
     DARK,
@@ -313,6 +327,8 @@ data class AmbilightSettings(
     val fallbackColor: Int = DEFAULT_FALLBACK_COLOR,
     val colorBalance: ColorBalance = ColorBalance(),
     val performanceProfile: PerformanceProfile = PerformanceProfile.BALANCED,
+    /** An explicit choice here overrides the performance profile's resolution cap. */
+    val captureResolution: CaptureResolution = CaptureResolution.AUTO,
     val keepScreenOn: Boolean = false,
     val theme: AppTheme = AppTheme.DARK,
 ) {
@@ -347,6 +363,17 @@ data class AmbilightSettings(
     companion object {
         /** Warm, dim amber: pleasant as a "TV is on" glow when the picture is protected. */
         const val DEFAULT_FALLBACK_COLOR: Int = 0xFF5A3410.toInt()
+        const val AUTO_SMALL_SETUP_LEDS = 150
+    }
+
+    /**
+     * Long side of the capture buffer for a session driving [totalLeds] LEDs. A fixed choice is
+     * used as is; AUTO picks 160 px for small setups (each LED still gets several pixels) and
+     * 320 px for long strips, within the performance profile.
+     */
+    fun analysisLongSide(totalLeds: Int): Int = when (captureResolution) {
+        CaptureResolution.AUTO -> minOf(effectiveAnalysisWidth, if (totalLeds in 1..AUTO_SMALL_SETUP_LEDS) 160 else 320)
+        else -> captureResolution.longSide
     }
 
     /** Analysis width actually used after applying the performance profile. */

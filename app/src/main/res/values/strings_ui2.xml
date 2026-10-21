@@ -140,4 +140,7 @@
     <string name="black_off">Turn off</string>
     <string name="black_keep">Keep last colours</string>
     <string name="black_fallback">Fallback colour</string>
-    <string name="color_fallback_color">Fallback colour</string></resources>
+    <string name="color_fallback_color">Fallback colour</string>    <string name="color_resolution">Capture resolution</string>
+    <string name="resolution_auto">Auto</string>
+    <string name="color_resolution_hint">160×90 is enough for up to ~150 LEDs and is lighter on weak TV boxes. 320×180 keeps detail for long or dense strips (200+ LEDs, 60 LED/m) and thin edge bands. Auto picks between them; a fixed choice overrides the performance profile. Sizes shown for a 16:9 screen.</string>
+</resources>

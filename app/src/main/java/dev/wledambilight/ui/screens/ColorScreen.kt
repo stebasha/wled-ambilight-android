@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.wledambilight.R
 import dev.wledambilight.core.model.AmbilightSettings
 import dev.wledambilight.core.model.BlackFrameBehavior
+import dev.wledambilight.core.model.CaptureResolution
 import dev.wledambilight.ui.blackBehaviorLabel
 import androidx.compose.foundation.layout.size
 import dev.wledambilight.core.model.PerformanceProfile
@@ -270,6 +271,20 @@ fun ColorScreen(viewModel: AppViewModel) {
                 onSelected = { profile ->
                     commit(draft.copy(performanceProfile = profile))
                 },
+            )
+            Text(stringResource(R.string.color_resolution), style = MaterialTheme.typography.bodyMedium)
+            ChoiceChips(
+                options = CaptureResolution.entries,
+                selected = draft.captureResolution,
+                label = {
+                    if (it == CaptureResolution.AUTO) stringResource(R.string.resolution_auto) else "${it.longSide}×${it.longSide * 9 / 16}"
+                },
+                onSelected = { commit(draft.copy(captureResolution = it)) },
+            )
+            Text(
+                stringResource(R.string.color_resolution_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
             )
             Text(
                 stringResource(R.string.color_performance_hint),

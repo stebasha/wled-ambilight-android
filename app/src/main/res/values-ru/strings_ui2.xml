@@ -140,4 +140,7 @@
     <string name="black_off">Выключить</string>
     <string name="black_keep">Держать последние цвета</string>
     <string name="black_fallback">Резервный цвет</string>
-    <string name="color_fallback_color">Резервный цвет</string></resources>
+    <string name="color_fallback_color">Резервный цвет</string>    <string name="color_resolution">Разрешение захвата</string>
+    <string name="resolution_auto">Авто</string>
+    <string name="color_resolution_hint">160×90 хватает примерно до 150 LED и меньше нагружает слабые TV-приставки. 320×180 сохраняет детали для длинных и плотных лент (200+ LED, 60 LED/м) и тонкой полосы анализа. «Авто» выбирает между ними; выбранное вручную значение важнее профиля производительности. Размеры указаны для экрана 16:9.</string>
+</resources>

@@ -191,7 +191,7 @@ class AmbilightEngine(
         }
 
         val (displayWidth, displayHeight) = displaySize()
-        val size = AnalysisSizing.forDisplay(displayWidth, displayHeight, sanitized.effectiveAnalysisWidth)
+        val size = AnalysisSizing.forDisplay(displayWidth, displayHeight, sanitized.analysisLongSide(plan.totalLeds.takeIf { it > 0 } ?: previewLayout.total))
         val frameSource: FrameSource = if (projection != null) {
             MediaProjectionFrameSource(appContext, projection, size.width, size.height)
         } else {
@@ -213,6 +213,7 @@ class AmbilightEngine(
             cadence = FrameCadenceLimiter(sanitized.effectiveFps),
             startedAt = System.currentTimeMillis(),
             analysisWidth = size.width,
+            analysisLongSide = maxOf(size.width, size.height),
             analysisHeight = size.height,
             protocolLabel = protocolLabel(wledTargets, goveeTargets, haTargets, demo),
             ledCount = plan.totalLeds,
@@ -270,7 +271,7 @@ class AmbilightEngine(
                 override fun onDisplayChanged(displayId: Int) {
                     if (displayId != Display.DEFAULT_DISPLAY) return
                     val (width, height) = displaySize()
-                    val resized = AnalysisSizing.forDisplay(width, height, sanitized.effectiveAnalysisWidth)
+                    val resized = AnalysisSizing.forDisplay(width, height, active.analysisLongSide)
                     frameSource.resize(resized.width, resized.height)
                     active.analysisWidth = resized.width
                     active.analysisHeight = resized.height
@@ -756,6 +757,7 @@ class AmbilightEngine(
         val cadence: FrameCadenceLimiter,
         val startedAt: Long,
         @Volatile var analysisWidth: Int,
+        val analysisLongSide: Int,
         @Volatile var analysisHeight: Int,
         val protocolLabel: String,
         val ledCount: Int,
