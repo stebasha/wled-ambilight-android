@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Navigation -->
+    <string name="nav_zones">Zones</string>
+    <string name="nav_tune">Tune</string>
+    <string name="nav_more">More</string>
+    <string name="nav_controller">WLED control</string>
+    <string name="tune_title">Tune</string>
+    <string name="tune_subtitle">Strip layout and colour processing</string>
+    <string name="tune_layout">Layout</string>
+    <string name="tune_color">Colour</string>
+    <string name="more_title">More</string>
+    <string name="more_controller_desc">Power, brightness, presets and effects</string>
+    <string name="more_diagnostics_desc">Network checks, live statistics and the event log</string>
+    <string name="more_settings_desc">Theme, profiles, privacy, reset and about</string>
+
+    <!-- Home -->
+    <string name="home_demo">Demo</string>
+    <string name="home_demo_hint">Animated test picture without screen capture — also drives connected strips</string>
+    <string name="home_demo_running">Demo mode: test animation, the screen is not captured</string>
+    <string name="home_outputs">%1$d outputs</string>
+    <string name="home_outputs_label">Outputs</string>
+    <string name="home_outputs_value">%1$d of %2$d</string>
+    <string name="home_zones_title">Zones</string>
+    <string name="home_main_strip">Screen strip</string>
+    <string name="home_ready">Ready</string>
+    <string name="status_demo">Demo</string>
+    <string name="home_no_outputs">Nothing to drive yet: add a controller or a zone.</string>
+
+    <!-- Zones -->
+    <string name="zones_title">Zones</string>
+    <string name="zones_subtitle">Extra strips and lamps, synced with the screen</string>
+    <string name="zones_main">Screen strip</string>
+    <string name="zones_main_desc">%1$s · LEDs 0–%2$d</string>
+    <string name="zones_main_none">No WLED controller selected for the screen strip.</string>
+    <string name="zones_add">Add zone</string>
+    <string name="zones_empty_title">No extra zones yet</string>
+    <string name="zones_empty_body">Add a desk strip, side arches, a second controller or a Govee lamp. Every zone takes its colours from the same frame as the screen strip.</string>
+    <string name="zones_no_devices">Add a WLED controller or a Govee lamp on the Devices screen first.</string>
+    <string name="zones_sync_note">All zones are computed from one frame and sent in one tick. Zones on the same controller must not overlap.</string>
+    <string name="zone_range">LEDs %1$d–%2$d</string>
+    <string name="zone_lamp">One colour</string>
+    <string name="zone_dialog_add">New zone</string>
+    <string name="zone_dialog_edit">Edit zone</string>
+    <string name="zone_name">Zone name</string>
+    <string name="zone_device">Device</string>
+    <string name="zone_mapping">Colour source</string>
+    <string name="mapping_edge">Along an edge</string>
+    <string name="mapping_perimeter">Around a frame</string>
+    <string name="mapping_solid">Area average</string>
+    <string name="zone_edge">Screen edge</string>
+    <string name="zone_reverse">Reverse direction</string>
+    <string name="zone_reverse_desc">Default order: left → right, bottom → top</string>
+    <string name="zone_offset">First LED</string>
+    <string name="zone_offset_desc">Where the zone starts on the controller strip</string>
+    <string name="zone_offset_next">Use next free (%1$d)</string>
+    <string name="zone_count">Number of LEDs</string>
+    <string name="zone_region">Screen area</string>
+    <string name="zone_brightness">Zone brightness</string>
+    <string name="zone_perimeter_counts">LEDs per side</string>
+    <string name="zone_govee_note">Govee lamps show one colour: per-segment control is not part of the published LAN API.</string>
+    <string name="zone_problem_overlap">Overlaps another LED range on this controller</string>
+    <string name="zone_problem_protocol">Not possible with this controller\'s protocol (use DDP or DNRGB)</string>
+    <string name="zone_problem_device">The device of this zone was removed</string>
+    <string name="zone_default_name">Zone %1$d</string>
+    <string name="zone_delete_title">Delete zone?</string>
+    <string name="zone_delete_body">Zone “%1$s” will be removed.</string>
+    <string name="region_full">Whole screen</string>
+    <string name="region_left_half">Left half</string>
+    <string name="region_right_half">Right half</string>
+    <string name="region_top_half">Top half</string>
+    <string name="region_bottom_half">Bottom half</string>
+    <string name="region_left_edge">Left edge</string>
+    <string name="region_right_edge">Right edge</string>
+    <string name="region_top_edge">Top edge</string>
+    <string name="region_bottom_edge">Bottom edge</string>
+    <string name="region_center">Centre</string>
+
+    <!-- Devices -->
+    <string name="devices_subtitle">WLED controllers and Govee lamps</string>
+    <string name="devices_govee_scan">Find Govee</string>
+    <string name="devices_govee_scanning">Looking for Govee lamps…</string>
+    <string name="devices_govee_results">Govee lamps</string>
+    <string name="devices_govee_hint">Turn on “LAN Control” for each lamp in the Govee Home app. Discovery listens on UDP 4002 for 3 seconds only.</string>
+    <string name="devices_govee_none">No Govee lamp answered. Check LAN Control and that the phone is on the same Wi-Fi.</string>
+    <string name="devices_kind">Device type</string>
+    <string name="kind_wled">WLED</string>
+    <string name="kind_govee">Govee (LAN)</string>
+    <string name="devices_main">Screen strip</string>
+    <string name="devices_make_main">Use for screen</string>
+    <string name="devices_govee_card">Govee LAN · UDP 4003</string>
+
+    <!-- Controller -->
+    <string name="ctrl_title">WLED control</string>
+    <string name="ctrl_subtitle">Presets and effects run on the controller. While Ambilight streams, realtime mode overrides them.</string>
+    <string name="ctrl_power">Power</string>
+    <string name="ctrl_brightness">WLED brightness</string>
+    <string name="ctrl_live">Realtime mode is active</string>
+    <string name="ctrl_live_desc">Another source (or this app) is streaming. Effects return when it stops.</string>
+    <string name="ctrl_release">Release realtime</string>
+    <string name="ctrl_presets">Presets</string>
+    <string name="ctrl_presets_empty">No saved presets on this controller.</string>
+    <string name="ctrl_effects">Effects</string>
+    <string name="ctrl_filter">Filter effects</string>
+    <string name="ctrl_error">The controller did not answer.</string>
+    <string name="ctrl_reload">Reload</string>
+    <string name="ctrl_no_wled">Add a WLED controller first.</string>
+    <string name="ctrl_loading">Loading…</string>
+
+    <!-- Profiles -->
+    <string name="settings_profile">Profile</string>
+    <string name="settings_profile_body">Layout, colour settings and zones as JSON. No passwords, tokens or screen data are included.</string>
+    <string name="settings_profile_copy">Copy profile</string>
+    <string name="settings_profile_paste">Paste profile</string>
+    <string name="settings_profile_copied">Profile copied to the clipboard</string>
+    <string name="settings_profile_imported">Profile imported</string>
+    <string name="settings_profile_invalid">The clipboard does not contain a valid profile</string>
+
+    <string name="onboarding_try_demo">Try the demo</string>
+</resources>

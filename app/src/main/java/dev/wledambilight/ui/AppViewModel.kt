@@ -521,6 +521,18 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         )
     }
 
+    /** Layout, colour settings and zones as JSON. Devices (addresses) are not part of a profile. */
+    fun exportProfile(): String = container.codec.encodeConfig(config.value)
+
+    /** Returns false when [raw] is not a valid profile; nothing is changed in that case. */
+    fun importProfile(raw: String): Boolean {
+        val decoded = container.codec.decodeConfig(raw)
+        if (decoded.corrupted || raw.isBlank()) return false
+        viewModelScope.launch { settings.updateConfig { decoded.value } }
+        diagnostics.report(DiagnosticCode.CONFIG_SAVED, "profile imported")
+        return true
+    }
+
     fun selectedProtocolLabel(device: WledDevice?): String = when {
         device?.kind == DeviceKind.GOVEE -> "Govee LAN"
         device?.protocol == OutputProtocol.WLED_UDP -> "WLED UDP ${device.wledUdpMode.name}"

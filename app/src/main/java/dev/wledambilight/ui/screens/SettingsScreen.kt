@@ -28,6 +28,9 @@ import dev.wledambilight.R
 import dev.wledambilight.core.model.AppTheme
 import dev.wledambilight.ui.AppViewModel
 import dev.wledambilight.ui.components.ChoiceChips
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import dev.wledambilight.ui.components.ScreenHeader
 import dev.wledambilight.ui.components.SectionCard
 import dev.wledambilight.ui.components.tvFocusRing
 import dev.wledambilight.ui.theme.TextSecondary
@@ -37,6 +40,8 @@ fun SettingsScreen(viewModel: AppViewModel) {
     val config by viewModel.config.collectAsStateWithLifecycle()
     var resetDialog by remember { mutableStateOf(false) }
     var licensesDialog by remember { mutableStateOf(false) }
+    var profileMessage by remember { mutableStateOf<Int?>(null) }
+    val clipboard = LocalClipboardManager.current
 
     Column(
         modifier = Modifier
@@ -45,7 +50,33 @@ fun SettingsScreen(viewModel: AppViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.displaySmall)
+        ScreenHeader(title = stringResource(R.string.settings_title))
+
+        SectionCard(title = stringResource(R.string.settings_profile), subtitle = stringResource(R.string.settings_profile_body)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        clipboard.setText(AnnotatedString(viewModel.exportProfile()))
+                        profileMessage = R.string.settings_profile_copied
+                    },
+                    modifier = Modifier.tvFocusRing(),
+                ) { Text(stringResource(R.string.settings_profile_copy)) }
+                OutlinedButton(
+                    onClick = {
+                        val text = clipboard.getText()?.text.orEmpty()
+                        profileMessage = if (viewModel.importProfile(text)) {
+                            R.string.settings_profile_imported
+                        } else {
+                            R.string.settings_profile_invalid
+                        }
+                    },
+                    modifier = Modifier.tvFocusRing(),
+                ) { Text(stringResource(R.string.settings_profile_paste)) }
+            }
+            profileMessage?.let {
+                Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+        }
 
         SectionCard(title = stringResource(R.string.settings_appearance)) {
             Text(

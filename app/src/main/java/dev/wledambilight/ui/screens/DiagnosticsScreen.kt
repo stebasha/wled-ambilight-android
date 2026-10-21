@@ -55,11 +55,11 @@ fun DiagnosticsScreen(viewModel: AppViewModel) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text(stringResource(R.string.diagnostics_title), style = MaterialTheme.typography.displaySmall)
+            dev.wledambilight.ui.components.ScreenHeader(title = stringResource(R.string.diagnostics_title))
         }
 
         item {

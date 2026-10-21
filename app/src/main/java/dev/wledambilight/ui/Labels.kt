@@ -3,7 +3,11 @@ package dev.wledambilight.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import dev.wledambilight.R
+import dev.wledambilight.core.model.DeviceKind
 import dev.wledambilight.core.model.LedDirection
+import dev.wledambilight.core.model.ScreenRegion
+import dev.wledambilight.core.model.ScreenSide
+import dev.wledambilight.core.model.ZoneMapping
 import dev.wledambilight.core.model.OutputProtocol
 import dev.wledambilight.core.model.PerformanceProfile
 import dev.wledambilight.core.model.SmoothingPreset
@@ -67,9 +71,52 @@ fun wireModeLabel(mode: WledUdpMode): String = stringResource(
     },
 )
 
+@Composable
+fun mappingLabel(mapping: ZoneMapping): String = stringResource(
+    when (mapping) {
+        ZoneMapping.EDGE -> R.string.mapping_edge
+        ZoneMapping.PERIMETER -> R.string.mapping_perimeter
+        ZoneMapping.SOLID -> R.string.mapping_solid
+    },
+)
+
+@Composable
+fun sideLabel(side: ScreenSide): String = stringResource(
+    when (side) {
+        ScreenSide.TOP -> R.string.calibration_top
+        ScreenSide.RIGHT -> R.string.calibration_right
+        ScreenSide.BOTTOM -> R.string.calibration_bottom
+        ScreenSide.LEFT -> R.string.calibration_left
+    },
+)
+
+@Composable
+fun regionLabel(region: ScreenRegion): String = stringResource(
+    when (region) {
+        ScreenRegion.FULL -> R.string.region_full
+        ScreenRegion.LEFT_HALF -> R.string.region_left_half
+        ScreenRegion.RIGHT_HALF -> R.string.region_right_half
+        ScreenRegion.TOP_HALF -> R.string.region_top_half
+        ScreenRegion.BOTTOM_HALF -> R.string.region_bottom_half
+        ScreenRegion.LEFT_EDGE -> R.string.region_left_edge
+        ScreenRegion.RIGHT_EDGE -> R.string.region_right_edge
+        ScreenRegion.TOP_EDGE -> R.string.region_top_edge
+        ScreenRegion.BOTTOM_EDGE -> R.string.region_bottom_edge
+        ScreenRegion.CENTER -> R.string.region_center
+    },
+)
+
+@Composable
+fun kindLabel(kind: DeviceKind): String = stringResource(
+    when (kind) {
+        DeviceKind.WLED -> R.string.kind_wled
+        DeviceKind.GOVEE -> R.string.kind_govee
+    },
+)
+
 fun EngineState.statusLabelRes(): Int = when (this) {
     EngineState.Idle -> R.string.status_idle
     EngineState.Starting -> R.string.status_starting
-    is EngineState.Running -> R.string.status_running
+    is EngineState.Running -> if (demo) R.string.status_demo else R.string.status_running
     is EngineState.Failed -> R.string.status_failed
 }

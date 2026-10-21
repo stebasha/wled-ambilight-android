@@ -49,11 +49,9 @@ fun ColorScreen(viewModel: AppViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.color_title), style = MaterialTheme.typography.displaySmall)
-
         SectionCard(title = stringResource(R.string.color_title)) {
             SliderRow(
                 label = stringResource(R.string.color_brightness),

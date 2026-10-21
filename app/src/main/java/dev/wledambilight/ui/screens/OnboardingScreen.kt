@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -46,9 +47,9 @@ import dev.wledambilight.ui.theme.Amber
 import dev.wledambilight.ui.theme.TextSecondary
 
 @Composable
-fun OnboardingScreen(onFinish: () -> Unit, onOpenDevices: () -> Unit) {
+fun OnboardingScreen(onFinish: () -> Unit, onOpenDevices: () -> Unit, onTryDemo: () -> Unit = onFinish) {
     var step by rememberSaveable { mutableStateOf(0) }
-    val primaryFocus = FocusRequester()
+    val primaryFocus = androidx.compose.runtime.remember { FocusRequester() }
 
     LaunchedEffect(step) {
         runCatching { primaryFocus.requestFocus() }
@@ -122,8 +123,11 @@ fun OnboardingScreen(onFinish: () -> Unit, onOpenDevices: () -> Unit) {
                         Text(stringResource(R.string.action_continue))
                     }
                 } else {
-                    TextButton(onClick = onFinish) {
+                    TextButton(onClick = onFinish, modifier = Modifier.tvFocusRing(RoundedCornerShape(12.dp))) {
                         Text(stringResource(R.string.action_skip))
+                    }
+                    OutlinedButton(onClick = onTryDemo, modifier = Modifier.tvFocusRing()) {
+                        Text(stringResource(R.string.onboarding_try_demo))
                     }
                     Button(
                         onClick = onOpenDevices,

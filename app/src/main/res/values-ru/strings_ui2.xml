@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Навигация -->
+    <string name="nav_zones">Зоны</string>
+    <string name="nav_tune">Настройка</string>
+    <string name="nav_more">Ещё</string>
+    <string name="nav_controller">Управление WLED</string>
+    <string name="tune_title">Настройка</string>
+    <string name="tune_subtitle">Раскладка ленты и обработка цвета</string>
+    <string name="tune_layout">Раскладка</string>
+    <string name="tune_color">Цвет</string>
+    <string name="more_title">Ещё</string>
+    <string name="more_controller_desc">Питание, яркость, пресеты и эффекты</string>
+    <string name="more_diagnostics_desc">Проверка сети, статистика и журнал событий</string>
+    <string name="more_settings_desc">Тема, профили, приватность, сброс и о приложении</string>
+
+    <!-- Главная -->
+    <string name="home_demo">Демо</string>
+    <string name="home_demo_hint">Анимация без захвата экрана — работает и на подключённых лентах</string>
+    <string name="home_demo_running">Демо-режим: тестовая анимация, экран не захватывается</string>
+    <string name="home_outputs">Выходов: %1$d</string>
+    <string name="home_outputs_label">Выходы</string>
+    <string name="home_outputs_value">%1$d из %2$d</string>
+    <string name="home_zones_title">Зоны</string>
+    <string name="home_main_strip">Лента экрана</string>
+    <string name="home_ready">Готово к запуску</string>
+    <string name="status_demo">Демо</string>
+    <string name="home_no_outputs">Пока нечем управлять: добавьте контроллер или зону.</string>
+
+    <!-- Зоны -->
+    <string name="zones_title">Зоны</string>
+    <string name="zones_subtitle">Дополнительные ленты и лампы, синхронные с экраном</string>
+    <string name="zones_main">Лента экрана</string>
+    <string name="zones_main_desc">%1$s · LED 0–%2$d</string>
+    <string name="zones_main_none">Не выбран WLED-контроллер для ленты экрана.</string>
+    <string name="zones_add">Добавить зону</string>
+    <string name="zones_empty_title">Дополнительных зон пока нет</string>
+    <string name="zones_empty_body">Добавьте ленту под столом, боковые арки, второй контроллер или лампу Govee. Каждая зона берёт цвета из того же кадра, что и лента экрана.</string>
+    <string name="zones_no_devices">Сначала добавьте WLED-контроллер или лампу Govee на экране «Устройства».</string>
+    <string name="zones_sync_note">Все зоны считаются из одного кадра и отправляются в одном такте. Зоны на одном контроллере не должны пересекаться.</string>
+    <string name="zone_range">LED %1$d–%2$d</string>
+    <string name="zone_lamp">Один цвет</string>
+    <string name="zone_dialog_add">Новая зона</string>
+    <string name="zone_dialog_edit">Изменить зону</string>
+    <string name="zone_name">Название зоны</string>
+    <string name="zone_device">Устройство</string>
+    <string name="zone_mapping">Источник цвета</string>
+    <string name="mapping_edge">Вдоль края</string>
+    <string name="mapping_perimeter">По периметру</string>
+    <string name="mapping_solid">Среднее по области</string>
+    <string name="zone_edge">Край экрана</string>
+    <string name="zone_reverse">Обратное направление</string>
+    <string name="zone_reverse_desc">По умолчанию: слева направо, снизу вверх</string>
+    <string name="zone_offset">Первый LED</string>
+    <string name="zone_offset_desc">Где зона начинается на ленте контроллера</string>
+    <string name="zone_offset_next">Следующий свободный (%1$d)</string>
+    <string name="zone_count">Количество LED</string>
+    <string name="zone_region">Область экрана</string>
+    <string name="zone_brightness">Яркость зоны</string>
+    <string name="zone_perimeter_counts">LED по сторонам</string>
+    <string name="zone_govee_note">Лампы Govee показывают один цвет: посегментное управление не входит в опубликованный LAN API.</string>
+    <string name="zone_problem_overlap">Пересекается с другим диапазоном LED на этом контроллере</string>
+    <string name="zone_problem_protocol">Невозможно с протоколом этого контроллера (используйте DDP или DNRGB)</string>
+    <string name="zone_problem_device">Устройство этой зоны удалено</string>
+    <string name="zone_default_name">Зона %1$d</string>
+    <string name="zone_delete_title">Удалить зону?</string>
+    <string name="zone_delete_body">Зона «%1$s» будет удалена.</string>
+    <string name="region_full">Весь экран</string>
+    <string name="region_left_half">Левая половина</string>
+    <string name="region_right_half">Правая половина</string>
+    <string name="region_top_half">Верхняя половина</string>
+    <string name="region_bottom_half">Нижняя половина</string>
+    <string name="region_left_edge">Левый край</string>
+    <string name="region_right_edge">Правый край</string>
+    <string name="region_top_edge">Верхний край</string>
+    <string name="region_bottom_edge">Нижний край</string>
+    <string name="region_center">Центр</string>
+
+    <!-- Устройства -->
+    <string name="devices_subtitle">Контроллеры WLED и лампы Govee</string>
+    <string name="devices_govee_scan">Найти Govee</string>
+    <string name="devices_govee_scanning">Ищу лампы Govee…</string>
+    <string name="devices_govee_results">Лампы Govee</string>
+    <string name="devices_govee_hint">Включите «LAN Control» для каждой лампы в приложении Govee Home. Поиск слушает UDP 4002 только 3 секунды.</string>
+    <string name="devices_govee_none">Лампы Govee не ответили. Проверьте LAN Control и что телефон в той же сети Wi-Fi.</string>
+    <string name="devices_kind">Тип устройства</string>
+    <string name="kind_wled">WLED</string>
+    <string name="kind_govee">Govee (LAN)</string>
+    <string name="devices_main">Лента экрана</string>
+    <string name="devices_make_main">Для экрана</string>
+    <string name="devices_govee_card">Govee LAN · UDP 4003</string>
+
+    <!-- Контроллер -->
+    <string name="ctrl_title">Управление WLED</string>
+    <string name="ctrl_subtitle">Пресеты и эффекты работают на контроллере. Пока Ambilight передаёт данные, realtime-режим их перекрывает.</string>
+    <string name="ctrl_power">Питание</string>
+    <string name="ctrl_brightness">Яркость WLED</string>
+    <string name="ctrl_live">Активен realtime-режим</string>
+    <string name="ctrl_live_desc">Другой источник (или это приложение) передаёт цвета. Эффекты вернутся, когда передача остановится.</string>
+    <string name="ctrl_release">Выйти из realtime</string>
+    <string name="ctrl_presets">Пресеты</string>
+    <string name="ctrl_presets_empty">На контроллере нет сохранённых пресетов.</string>
+    <string name="ctrl_effects">Эффекты</string>
+    <string name="ctrl_filter">Фильтр эффектов</string>
+    <string name="ctrl_error">Контроллер не ответил.</string>
+    <string name="ctrl_reload">Обновить</string>
+    <string name="ctrl_no_wled">Сначала добавьте WLED-контроллер.</string>
+    <string name="ctrl_loading">Загрузка…</string>
+
+    <!-- Профили -->
+    <string name="settings_profile">Профиль</string>
+    <string name="settings_profile_body">Раскладка, настройки цвета и зоны в JSON. Пароли, токены и содержимое экрана не включаются.</string>
+    <string name="settings_profile_copy">Скопировать профиль</string>
+    <string name="settings_profile_paste">Вставить профиль</string>
+    <string name="settings_profile_copied">Профиль скопирован в буфер обмена</string>
+    <string name="settings_profile_imported">Профиль импортирован</string>
+    <string name="settings_profile_invalid">В буфере обмена нет корректного профиля</string>
+
+    <string name="onboarding_try_demo">Попробовать демо</string>
+</resources>

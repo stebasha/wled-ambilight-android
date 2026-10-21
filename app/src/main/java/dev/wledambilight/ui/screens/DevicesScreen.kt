@@ -37,7 +37,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.wledambilight.R
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.LinearScale
+import dev.wledambilight.core.model.DeviceKind
 import dev.wledambilight.core.model.HostValidator
+import dev.wledambilight.ui.components.IconBadge
+import dev.wledambilight.ui.components.Pill
+import dev.wledambilight.ui.components.ScreenHeader
+import dev.wledambilight.ui.kindLabel
 import dev.wledambilight.core.model.OutputProtocol
 import dev.wledambilight.core.model.WledDevice
 import dev.wledambilight.core.model.WledUdpMode
@@ -61,6 +70,10 @@ fun DevicesScreen(viewModel: AppViewModel) {
     val scanning by viewModel.scanning.collectAsStateWithLifecycle()
     val scanSubnet by viewModel.scanSubnet.collectAsStateWithLifecycle()
     val busyId by viewModel.busyDeviceId.collectAsStateWithLifecycle()
+    val goveeHits by viewModel.goveeHits.collectAsStateWithLifecycle()
+    val goveeScanning by viewModel.goveeScanning.collectAsStateWithLifecycle()
+    var goveeSearched by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(goveeScanning) { if (goveeScanning) goveeSearched = true }
 
     var addOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<WledDevice?>(null) }
@@ -73,12 +86,10 @@ fun DevicesScreen(viewModel: AppViewModel) {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            ScreenHeader(
+                title = stringResource(R.string.devices_title),
+                subtitle = stringResource(R.string.devices_subtitle),
             ) {
-                Text(stringResource(R.string.devices_title), style = MaterialTheme.typography.displaySmall)
                 Button(onClick = { addOpen = true }, modifier = Modifier.tvFocusRing()) {
                     Text(stringResource(R.string.devices_add_manual))
                 }
@@ -86,7 +97,16 @@ fun DevicesScreen(viewModel: AppViewModel) {
         }
 
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                OutlinedButton(
+                    onClick = { if (goveeScanning) viewModel.stopGoveeScan() else viewModel.scanGovee() },
+                    modifier = Modifier.tvFocusRing(),
+                ) {
+                    Text(stringResource(if (goveeScanning) R.string.action_stop else R.string.devices_govee_scan))
+                }
                 OutlinedButton(
                     onClick = { if (discovering) viewModel.stopDiscovery() else viewModel.startDiscovery() },
                     modifier = Modifier.tvFocusRing(),
@@ -152,6 +172,48 @@ fun DevicesScreen(viewModel: AppViewModel) {
                         stringResource(R.string.devices_scanning, scanSubnet ?: "…"),
                         color = TextSecondary,
                     )
+                }
+            }
+        }
+
+        if (goveeScanning) {
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(18.dp))
+                    Text(stringResource(R.string.devices_govee_scanning), color = TextSecondary)
+                }
+            }
+        }
+
+        if (goveeSearched && !goveeScanning) {
+            item {
+                SectionCard(
+                    title = stringResource(R.string.devices_govee_results),
+                    subtitle = stringResource(R.string.devices_govee_hint),
+                ) {
+                    if (goveeHits.isEmpty()) {
+                        Text(stringResource(R.string.devices_govee_none), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    }
+                    goveeHits.forEach { hit ->
+                        val known = devices.any { it.host == hit.ip }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Govee ${hit.sku ?: ""}".trim(), style = MaterialTheme.typography.titleMedium)
+                                Text(hit.ip, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                            }
+                            TextButton(
+                                onClick = { viewModel.addGovee(hit) },
+                                enabled = !known,
+                                modifier = Modifier.tvFocusRing(),
+                            ) {
+                                Text(stringResource(R.string.action_add))
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -275,10 +337,14 @@ private fun DeviceCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val isGovee = device.kind == DeviceKind.GOVEE
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = if (selected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = androidx.compose.foundation.BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant,
+        ),
         modifier = Modifier.fillMaxWidth(),
     ) {
         val protocolText = protocolLabel(device.protocol)
@@ -286,34 +352,35 @@ private fun DeviceCard(
         val notTested = stringResource(R.string.devices_not_tested)
         val firmwareLabel = stringResource(R.string.devices_firmware)
         val ledsLabel = stringResource(R.string.devices_leds)
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconBadge(
+                    if (isGovee) Icons.Rounded.Lightbulb else Icons.Rounded.LinearScale,
+                    tint = if (isGovee) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                )
                 Column(Modifier.weight(1f)) {
                     Text(device.displayName, style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "${device.host}:${device.httpPort} · $protocolText → ${device.outputPort}",
+                        if (isGovee) {
+                            "${device.host} · ${stringResource(R.string.devices_govee_card)}"
+                        } else {
+                            "${device.host}:${device.httpPort} · $protocolText → ${device.outputPort}"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary,
                     )
                 }
-                if (selected) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                    ) {
-                        Text(
-                            stringResource(R.string.devices_selected),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
-                    }
-                }
+                if (selected) Pill(stringResource(R.string.devices_main))
+                if (isGovee) Pill(kindLabel(device.kind), MaterialTheme.colorScheme.tertiary)
             }
             Text(
-                text = "$firmwareLabel: ${device.firmwareVersion ?: notTested}   ·   " +
-                    "$ledsLabel: ${device.ledCount ?: unknown}" +
-                    if (device.protocol == OutputProtocol.WLED_UDP) "   ·   ${device.wledUdpMode.name}" else "",
+                text = if (isGovee) {
+                    device.model ?: unknown
+                } else {
+                    "$firmwareLabel: ${device.firmwareVersion ?: notTested}   ·   " +
+                        "$ledsLabel: ${device.ledCount ?: unknown}" +
+                        if (device.protocol == OutputProtocol.WLED_UDP) "   ·   ${device.wledUdpMode.name}" else ""
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
             )
@@ -332,9 +399,9 @@ private fun DeviceCard(
                     Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
                 Spacer(Modifier.weight(1f))
-                if (!selected) {
+                if (!selected && !isGovee) {
                     Button(onClick = onSelect, modifier = Modifier.tvFocusRing()) {
-                        Text(stringResource(R.string.action_select))
+                        Text(stringResource(R.string.devices_make_main))
                     }
                 }
             }
@@ -357,7 +424,9 @@ private fun DeviceDialog(
     }
     var mode by remember { mutableStateOf(initial?.wledUdpMode ?: WledUdpMode.DNRGB) }
     var ledCount by remember { mutableStateOf(initial?.ledCount?.toString() ?: "") }
+    var kind by remember { mutableStateOf(initial?.kind ?: DeviceKind.WLED) }
     var showErrors by remember { mutableStateOf(false) }
+    val govee = kind == DeviceKind.GOVEE
 
     val hostError = HostValidator.error(host)
     val httpPortValue = httpPort.toIntOrNull()
@@ -366,7 +435,7 @@ private fun DeviceDialog(
     val outputPortError = if (outputPortValue == null) true else HostValidator.portError(outputPortValue) != null
     val ledValue = ledCount.trim().ifBlank { null }?.toIntOrNull()
     val ledError = ledCount.isNotBlank() && (ledValue == null || HostValidator.ledCountError(ledValue))
-    val valid = hostError == null && !httpPortError && !outputPortError && !ledError
+    val valid = hostError == null && (govee || (!httpPortError && !outputPortError && !ledError))
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -384,6 +453,15 @@ private fun DeviceDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (initial == null) {
+                    Text(stringResource(R.string.devices_kind), style = MaterialTheme.typography.bodyMedium)
+                    ChoiceChips(
+                        options = DeviceKind.entries,
+                        selected = kind,
+                        label = { kindLabel(it) },
+                        onSelected = { kind = it },
+                    )
+                }
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(64) },
@@ -404,6 +482,13 @@ private fun DeviceDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (govee) {
+                    Text(
+                        stringResource(R.string.devices_govee_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary,
+                    )
+                } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = httpPort,
@@ -476,6 +561,7 @@ private fun DeviceDialog(
                         color = TextSecondary,
                     )
                 }
+                }
             }
         },
         confirmButton = {
@@ -484,6 +570,8 @@ private fun DeviceDialog(
                 if (valid) {
                     val device = WledDevice(
                         id = initial?.id ?: UUID.randomUUID().toString(),
+                        kind = kind,
+                        model = initial?.model,
                         name = name.trim(),
                         host = host.trim(),
                         httpPort = httpPortValue ?: 80,
