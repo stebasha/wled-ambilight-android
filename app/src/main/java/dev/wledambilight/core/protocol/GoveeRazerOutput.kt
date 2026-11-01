@@ -9,15 +9,15 @@ import kotlin.math.abs
  * Streams one colour per segment to a Govee lamp through the unofficial razer mode (see [GoveeLan]).
  *
  * Unlike `colorwc`, razer frames bypass the lamp's own transition, so they can go out at video rate.
- * The mode is armed again every [rearmMillis]: the lamp leaves it on its own after a minute without
- * data, and also when the Govee app takes over. On [release] the lamp returns to its previous state.
+ * The mode is armed only at session start: repeating the command visibly blinks an H60B0, and the
+ * frames themselves keep the mode alive (the lamp leaves it after a minute without data). On
+ * [release] the lamp returns to its previous state.
  */
 class GoveeRazerOutput(
     host: String,
     private val stretch: Boolean = false,
     private val minIntervalMillis: Long = DEFAULT_INTERVAL_MS,
     private val refreshMillis: Long = REFRESH_MS,
-    private val rearmMillis: Long = REARM_MS,
     private val settleMillis: Long = SETTLE_MS,
     private val clock: () -> Long = System::currentTimeMillis,
     private val udp: UdpLedOutput = UdpLedOutput(host, GoveeLan.COMMAND_PORT),
@@ -26,15 +26,16 @@ class GoveeRazerOutput(
     private val mutex = Mutex()
     private var lastColors: IntArray? = null
     private var lastSentAt = Long.MIN_VALUE / 2
-    private var lastArmedAt = Long.MIN_VALUE / 2
 
     override val packetsSent: Long get() = udp.packetsSent
 
     override suspend fun prepare() = mutex.withLock {
         udp.sendPackets(listOf(GoveeLan.turn(true).encodeToByteArray()))
-        delay(settleMillis)
-        udp.sendPackets(listOf(GoveeLan.razerMode(true).encodeToByteArray()))
-        lastArmedAt = clock()
+        // Repeated because there is no acknowledgement and this is the only chance to arm the mode.
+        repeat(ARM_REPEATS) {
+            delay(settleMillis)
+            udp.sendPackets(listOf(GoveeLan.razerMode(true).encodeToByteArray()))
+        }
     }
 
     override suspend fun offer(colors: IntArray): Boolean = mutex.withLock {
@@ -64,13 +65,7 @@ class GoveeRazerOutput(
     override fun close() = udp.close()
 
     private suspend fun send(colors: IntArray, now: Long) {
-        val frame = GoveeLan.razerColors(colors, stretch).encodeToByteArray()
-        if (now - lastArmedAt >= rearmMillis) {
-            udp.sendPackets(listOf(GoveeLan.razerMode(true).encodeToByteArray(), frame))
-            lastArmedAt = now
-        } else {
-            udp.sendPackets(listOf(frame))
-        }
+        udp.sendPackets(listOf(GoveeLan.razerColors(colors, stretch).encodeToByteArray()))
         lastColors = colors
         lastSentAt = now
     }
@@ -84,8 +79,7 @@ class GoveeRazerOutput(
         /** Community reports: stable at 40 frames/s or more. */
         const val DEFAULT_INTERVAL_MS = 25L
         const val REFRESH_MS = 1_000L
-        /** Well inside the lamp's one-minute timeout; re-arming too often is a suspected flicker source. */
-        const val REARM_MS = 30_000L
+        const val ARM_REPEATS = 3
         const val SETTLE_MS = 100L
         private const val CHANGE_THRESHOLD = 3
     }

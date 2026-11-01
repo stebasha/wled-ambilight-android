@@ -86,7 +86,6 @@ class GoveeLanTest {
             host = "127.0.0.1",
             minIntervalMillis = 25,
             refreshMillis = 1000,
-            rearmMillis = 5000,
             settleMillis = 0,
             clock = { now },
             udp = UdpLedOutput("127.0.0.1", receiver.localPort),
@@ -102,25 +101,25 @@ class GoveeLanTest {
             assertFalse("unchanged", output.offer(intArrayOf(0xFFFE0000.toInt(), 0xFF000000.toInt())))
             assertTrue(output.offer(green))
             output.keepAlive()
-            assertEquals("no keep-alive right after a frame", 4L, output.packetsSent)
+            assertEquals("no keep-alive right after a frame", 6L, output.packetsSent)
             now += 1000
             output.keepAlive()
-            assertEquals(5L, output.packetsSent)
-            now += 5000
+            assertEquals(7L, output.packetsSent)
+            now += 60_000
             assertTrue(output.offer(red))
-            assertEquals("mode armed again with the frame", 7L, output.packetsSent)
+            assertEquals("the mode is not armed again while streaming", 8L, output.packetsSent)
             output.release()
 
-            val seen = List(9) {
+            val seen = List(10) {
                 val packet = DatagramPacket(ByteArray(512), 512)
                 receiver.receive(packet)
                 String(packet.data, 0, packet.length)
             }
             assertEquals("turn", data(seen[0])["cmd"]!!.jsonPrimitive.content)
-            assertEquals(GoveeLan.razerMode(true), seen[1])
-            assertEquals(GoveeLan.razerColors(red, false), seen[2])
-            assertEquals(GoveeLan.razerMode(true), seen[5])
-            assertEquals(GoveeLan.razerMode(false), seen[8])
+            assertEquals(List(3) { GoveeLan.razerMode(true) }, seen.subList(1, 4))
+            assertEquals(GoveeLan.razerColors(red, false), seen[4])
+            assertEquals(GoveeLan.razerColors(red, false), seen[7])
+            assertEquals(GoveeLan.razerMode(false), seen[9])
         } finally {
             output.close()
             receiver.close()
