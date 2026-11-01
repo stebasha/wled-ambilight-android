@@ -427,7 +427,7 @@ private fun ZoneDialog(
                                 description = stringResource(R.string.zone_govee_segments_desc),
                                 checked = goveeSegments,
                                 onCheckedChange = {
-                                    zone = zone.copy(goveeSegments = if (it) LightZone.DEFAULT_GOVEE_SEGMENTS else 0)
+                                    zone = zone.copy(goveeSegments = if (it) LightZone.defaultGoveeSegments(device.model) else 0)
                                 },
                             )
                         }

@@ -195,6 +195,12 @@ data class LightZone(
         const val MIN_GOVEE_SEGMENTS = 2
         const val MAX_GOVEE_SEGMENTS = 100
         const val DEFAULT_GOVEE_SEGMENTS = 10
+
+        /** Segment counts reported by the Govee Platform API for known models. */
+        private val GOVEE_MODEL_SEGMENTS = mapOf("H60B0" to 8)
+
+        fun defaultGoveeSegments(model: String?): Int =
+            GOVEE_MODEL_SEGMENTS[model?.uppercase()] ?: DEFAULT_GOVEE_SEGMENTS
     }
 }
 

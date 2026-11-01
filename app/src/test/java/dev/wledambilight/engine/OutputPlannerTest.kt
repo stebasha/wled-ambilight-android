@@ -94,6 +94,13 @@ class OutputPlannerTest {
     }
 
     @Test
+    fun `known govee models get their own segment count`() {
+        assertEquals(8, LightZone.defaultGoveeSegments("h60b0"))
+        assertEquals(LightZone.DEFAULT_GOVEE_SEGMENTS, LightZone.defaultGoveeSegments("H6199"))
+        assertEquals(LightZone.DEFAULT_GOVEE_SEGMENTS, LightZone.defaultGoveeSegments(null))
+    }
+
+    @Test
     fun `govee segment count is sanitized`() {
         assertEquals(0, LightZone(goveeSegments = -3).sanitized().goveeSegments)
         assertEquals(LightZone.MIN_GOVEE_SEGMENTS, LightZone(goveeSegments = 1).sanitized().goveeSegments)
