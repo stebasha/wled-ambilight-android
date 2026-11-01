@@ -172,7 +172,7 @@ data class LightZone(
      */
     val goveeSegments: Int = 0,
     /** Spread the segments over the whole lamp, which tolerates a count that differs from the lamp's. */
-    val goveeStretch: Boolean = true,
+    val goveeStretch: Boolean = false,
 ) {
     /** Number of LEDs this zone writes on a WLED controller. */
     fun ledsFor(kind: DeviceKind): Int = when {
@@ -201,6 +201,11 @@ data class LightZone(
 
         fun defaultGoveeSegments(model: String?): Int =
             GOVEE_MODEL_SEGMENTS[model?.uppercase()] ?: DEFAULT_GOVEE_SEGMENTS
+
+        /** Checked on a real H60B0: it shows colour frames with stretch off and ignores them with it on. */
+        private val GOVEE_NO_STRETCH = setOf("H60B0")
+
+        fun supportsGoveeStretch(model: String?): Boolean = model?.uppercase() !in GOVEE_NO_STRETCH
     }
 }
 

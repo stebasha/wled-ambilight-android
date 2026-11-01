@@ -14,7 +14,7 @@ import kotlin.math.abs
  */
 class GoveeRazerOutput(
     host: String,
-    private val stretch: Boolean = true,
+    private val stretch: Boolean = false,
     private val minIntervalMillis: Long = DEFAULT_INTERVAL_MS,
     private val refreshMillis: Long = REFRESH_MS,
     private val rearmMillis: Long = REARM_MS,

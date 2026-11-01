@@ -118,7 +118,7 @@ class GoveeLanTest {
             }
             assertEquals("turn", data(seen[0])["cmd"]!!.jsonPrimitive.content)
             assertEquals(GoveeLan.razerMode(true), seen[1])
-            assertEquals(GoveeLan.razerColors(red, true), seen[2])
+            assertEquals(GoveeLan.razerColors(red, false), seen[2])
             assertEquals(GoveeLan.razerMode(true), seen[5])
             assertEquals(GoveeLan.razerMode(false), seen[8])
         } finally {

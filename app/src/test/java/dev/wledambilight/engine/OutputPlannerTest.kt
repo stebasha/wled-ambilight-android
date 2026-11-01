@@ -101,6 +101,18 @@ class OutputPlannerTest {
     }
 
     @Test
+    fun `stretch stays off on models that ignore it`() {
+        val lampZone = LightZone(
+            id = "l", deviceId = "lamp", mapping = ZoneMapping.EDGE, edge = ScreenSide.LEFT,
+            goveeSegments = 8, goveeStretch = true,
+        )
+        val other = OutputPlanner.plan(config(lampZone, main = false), null, listOf(lamp))
+        assertTrue(other.govee.single().stretch)
+        val h60b0 = OutputPlanner.plan(config(lampZone, main = false), null, listOf(lamp.copy(model = "H60B0")))
+        assertEquals(false, h60b0.govee.single().stretch)
+    }
+
+    @Test
     fun `govee segment count is sanitized`() {
         assertEquals(0, LightZone(goveeSegments = -3).sanitized().goveeSegments)
         assertEquals(LightZone.MIN_GOVEE_SEGMENTS, LightZone(goveeSegments = 1).sanitized().goveeSegments)

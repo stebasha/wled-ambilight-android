@@ -345,7 +345,8 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         if (device.kind == DeviceKind.GOVEE && zone.mapping == ZoneMapping.EDGE && zone.goveeSegments > 0) {
             segmentTestJob?.cancel()
             segmentTestJob = viewModelScope.launch {
-                testSender.sendGoveeSegments(device, GoveeLan.segmentTestPattern(zone.goveeSegments), zone.goveeStretch)
+                val stretch = zone.goveeStretch && LightZone.supportsGoveeStretch(device.model)
+                testSender.sendGoveeSegments(device, GoveeLan.segmentTestPattern(zone.goveeSegments), stretch)
                 delay(SEGMENT_TEST_MS)
                 if (engineState.value !is EngineState.Running) testSender.stopGoveeSegments(device)
             }

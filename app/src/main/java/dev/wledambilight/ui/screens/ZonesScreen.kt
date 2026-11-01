@@ -440,12 +440,14 @@ private fun ZoneDialog(
                                 bigStep = 5,
                                 onChange = { zone = zone.copy(goveeSegments = it) },
                             )
-                            SwitchRow(
-                                label = stringResource(R.string.zone_govee_stretch),
-                                description = stringResource(R.string.zone_govee_stretch_desc),
-                                checked = zone.goveeStretch,
-                                onCheckedChange = { zone = zone.copy(goveeStretch = it) },
-                            )
+                            if (LightZone.supportsGoveeStretch(device?.model)) {
+                                SwitchRow(
+                                    label = stringResource(R.string.zone_govee_stretch),
+                                    description = stringResource(R.string.zone_govee_stretch_desc),
+                                    checked = zone.goveeStretch,
+                                    onCheckedChange = { zone = zone.copy(goveeStretch = it) },
+                                )
+                            }
                         }
                         if (!isGovee || goveeSegments) {
                             SwitchRow(

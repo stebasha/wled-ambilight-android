@@ -41,7 +41,7 @@ data class GoveePlan(
     val brightnessScale: Float,
     /** Razer segments, first to last. Empty: one colour, the average of [region]. */
     val segments: List<LedZone> = emptyList(),
-    val stretch: Boolean = true,
+    val stretch: Boolean = false,
 )
 
 /** One Home Assistant light entity fed with the average colour of [region]. */
@@ -123,7 +123,8 @@ object OutputPlanner {
                 } else {
                     emptyList()
                 }
-                govee += GoveePlan(zone.id, device, goveeRegion(zone), scale, segments, zone.goveeStretch)
+                val stretch = zone.goveeStretch && LightZone.supportsGoveeStretch(device.model)
+                govee += GoveePlan(zone.id, device, goveeRegion(zone), scale, segments, stretch)
                 continue
             }
             if (device.kind == DeviceKind.HOME_ASSISTANT) {
