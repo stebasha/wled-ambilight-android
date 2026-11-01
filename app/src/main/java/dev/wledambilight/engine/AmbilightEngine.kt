@@ -35,6 +35,8 @@ import dev.wledambilight.core.model.WledDevice
 import dev.wledambilight.core.network.WledHttpClient
 import dev.wledambilight.core.protocol.DdpPacketBuilder
 import dev.wledambilight.core.protocol.GoveeOutput
+import dev.wledambilight.core.protocol.GoveeRazerOutput
+import dev.wledambilight.core.protocol.GoveeSink
 import dev.wledambilight.core.protocol.RgbEncoder
 import dev.wledambilight.core.protocol.UdpLedOutput
 import dev.wledambilight.core.protocol.WledUdpPacketBuilder
@@ -158,7 +160,13 @@ class AmbilightEngine(
             projection?.let { runCatching { it.stop() } }
             throw cancelled
         }
-        val goveeTargets = plan.govee.map { GoveeTarget(it, GoveeOutput(it.device.host)) }
+        val goveeTargets = plan.govee.map { goveePlan ->
+            val host = goveePlan.device.host
+            GoveeTarget(
+                goveePlan,
+                if (goveePlan.segments.isEmpty()) GoveeOutput(host) else GoveeRazerOutput(host, goveePlan.stretch),
+            )
+        }
         val haTargets = plan.ha.mapNotNull { haPlan ->
             val token = haTokens[haPlan.device.id]
             if (token.isNullOrBlank()) {
@@ -368,9 +376,14 @@ class AmbilightEngine(
             }
         }
         val goveeColors = active.govee.map { target ->
-            val color = fallback?.let { scaleColor(it, target.plan.brightnessScale) }
-                ?: analyzer.regionColor(frame, target.plan.region, settings, target.plan.brightnessScale)
-            target.smoother.smooth(intArrayOf(color), smoothingParams)[0].also { target.last = it }
+            val segments = target.plan.segments
+            val scale = target.plan.brightnessScale
+            val raw = when {
+                fallback != null -> IntArray(segments.size.coerceAtLeast(1)) { scaleColor(fallback, scale) }
+                segments.isNotEmpty() -> analyzer.analyzeZones(frame, segments, settings, scale).colors
+                else -> intArrayOf(analyzer.regionColor(frame, target.plan.region, settings, scale))
+            }
+            target.smoother.smooth(raw, smoothingParams).also { target.last = it }
         }
         for (target in active.ha) {
             val color = fallback?.let { scaleColor(it, target.plan.brightnessScale) }
@@ -443,6 +456,16 @@ class AmbilightEngine(
                 if (now - target.lastSendAt < KEEPALIVE_INTERVAL_MS || !target.readyAt(now)) continue
                 sendWled(active, target, packets, now)
             }
+            for (target in active.govee) {
+                if (!target.readyAt(now)) continue
+                try {
+                    target.output.keepAlive()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    onTargetFailure(active, target, target.plan.device, error, now)
+                }
+            }
         }
     }
 
@@ -493,7 +516,7 @@ class AmbilightEngine(
                 if (span.plan.key != OutputPlanner.MAIN_KEY) span.last?.let { zones[span.plan.key] = it.copyOf() }
             }
         }
-        for (target in active.govee) zones[target.plan.key] = intArrayOf(target.last)
+        for (target in active.govee) zones[target.plan.key] = target.last.copyOf()
         for (target in active.ha) zones[target.plan.key] = intArrayOf(target.last)
         _zonePreview.value = zones
     }
@@ -570,7 +593,16 @@ class AmbilightEngine(
                 }
             }
         }
-        govee.forEach { runCatching { it.output.close() } }
+        govee.forEach { target ->
+            if (release) {
+                releaseScope.launch {
+                    withTimeoutOrNull(RELEASE_TIMEOUT_MS) { runCatching { target.output.release() } }
+                    runCatching { target.output.close() }
+                }
+            } else {
+                runCatching { target.output.close() }
+            }
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -643,7 +675,8 @@ class AmbilightEngine(
     private fun protocolLabel(wled: List<WledTarget>, govee: List<GoveeTarget>, ha: List<HaTarget>, demo: Boolean): String {
         val parts = buildList {
             wled.map { protocolLabel(it.device) }.distinct().forEach { add(it) }
-            if (govee.isNotEmpty()) add("Govee LAN")
+            if (govee.any { it.plan.segments.isEmpty() }) add("Govee LAN")
+            if (govee.any { it.plan.segments.isNotEmpty() }) add("Govee razer")
             if (ha.isNotEmpty()) add("Home Assistant")
         }
         return when {
@@ -743,9 +776,9 @@ class AmbilightEngine(
         @Volatile var last: Int = 0xFF000000.toInt()
     }
 
-    private class GoveeTarget(val plan: GoveePlan, val output: GoveeOutput) : TargetHealth() {
+    private class GoveeTarget(val plan: GoveePlan, val output: GoveeSink) : TargetHealth() {
         val smoother = ColorSmoother()
-        @Volatile var last: Int = 0xFF000000.toInt()
+        @Volatile var last: IntArray = IntArray(plan.segments.size.coerceAtLeast(1)) { 0xFF000000.toInt() }
     }
 
     private class Session(

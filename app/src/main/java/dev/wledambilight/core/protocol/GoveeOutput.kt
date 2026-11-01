@@ -3,6 +3,23 @@ package dev.wledambilight.core.protocol
 import java.io.Closeable
 import kotlin.math.abs
 
+/** A Govee lamp as seen by the engine: one colour ([GoveeOutput]) or one per segment ([GoveeRazerOutput]). */
+interface GoveeSink : Closeable {
+    val packetsSent: Long
+
+    /** Called once at session start. */
+    suspend fun prepare()
+
+    /** Returns true when a command was actually sent. */
+    suspend fun offer(colors: IntArray): Boolean
+
+    /** Called periodically, also while the picture is static and no frames arrive. */
+    suspend fun keepAlive() = Unit
+
+    /** Called once at session end, before [close]. */
+    suspend fun release() = Unit
+}
+
 /**
  * Streams one colour to a Govee lamp through the LAN API.
  *
@@ -17,18 +34,20 @@ class GoveeOutput(
     private val refreshMillis: Long = REFRESH_MS,
     private val clock: () -> Long = System::currentTimeMillis,
     private val udp: UdpLedOutput = UdpLedOutput(host, GoveeLan.COMMAND_PORT),
-) : Closeable {
+) : GoveeSink {
 
     private var lastColor: Int? = null
     private var lastSentAt = Long.MIN_VALUE / 2
 
-    val packetsSent: Long get() = udp.packetsSent
+    override val packetsSent: Long get() = udp.packetsSent
 
-    /** Switches the lamp on; called once at session start. */
-    suspend fun prepare() {
+    /** Switches the lamp on. */
+    override suspend fun prepare() {
         udp.sendPackets(listOf(GoveeLan.turn(true).encodeToByteArray()))
         lastSentAt = clock()
     }
+
+    override suspend fun offer(colors: IntArray): Boolean = offer(colors.first())
 
     /** Returns true when a command was actually sent. */
     suspend fun offer(argb: Int): Boolean {

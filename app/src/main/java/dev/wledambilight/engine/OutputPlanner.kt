@@ -39,6 +39,9 @@ data class GoveePlan(
     val device: WledDevice,
     val region: ScreenRegion,
     val brightnessScale: Float,
+    /** Razer segments, first to last. Empty: one colour, the average of [region]. */
+    val segments: List<LedZone> = emptyList(),
+    val stretch: Boolean = true,
 )
 
 /** One Home Assistant light entity fed with the average colour of [region]. */
@@ -71,7 +74,9 @@ data class SessionPlan(
     val ha: List<HaPlan> = emptyList(),
 ) {
     val isEmpty: Boolean get() = wled.isEmpty() && govee.isEmpty() && ha.isEmpty()
-    val totalLeds: Int get() = wled.sumOf { plan -> plan.spans.sumOf { it.ledCount } } + govee.size + ha.size
+    val totalLeds: Int
+        get() = wled.sumOf { plan -> plan.spans.sumOf { it.ledCount } } +
+            govee.sumOf { it.segments.size.coerceAtLeast(1) } + ha.size
     val targetCount: Int get() = wled.size + govee.size + ha.size
 }
 
@@ -113,7 +118,12 @@ object OutputPlanner {
             }
             val scale = zone.brightness.coerceIn(0, 100) / 100f
             if (device.kind == DeviceKind.GOVEE) {
-                govee += GoveePlan(zone.id, device, goveeRegion(zone), scale)
+                val segments = if (zone.mapping == ZoneMapping.EDGE && zone.goveeSegments > 0) {
+                    LedLayoutMapper.edgeZones(zone.edge, zone.goveeSegments, zone.reverse)
+                } else {
+                    emptyList()
+                }
+                govee += GoveePlan(zone.id, device, goveeRegion(zone), scale, segments, zone.goveeStretch)
                 continue
             }
             if (device.kind == DeviceKind.HOME_ASSISTANT) {

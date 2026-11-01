@@ -71,6 +71,36 @@ class OutputPlannerTest {
     }
 
     @Test
+    fun `govee segments spread along the edge and count as outputs`() {
+        val lampZone = LightZone(
+            id = "l", deviceId = "lamp", mapping = ZoneMapping.EDGE, edge = ScreenSide.RIGHT,
+            goveeSegments = 4, goveeStretch = false,
+        )
+        val plan = OutputPlanner.plan(config(lampZone, main = false), null, listOf(lamp))
+        val govee = plan.govee.single()
+        assertEquals(4, govee.segments.size)
+        assertTrue(govee.segments.all { it.side == ScreenSide.RIGHT })
+        assertEquals(false, govee.stretch)
+        assertEquals(4, plan.totalLeds)
+        assertEquals(1, plan.targetCount)
+    }
+
+    @Test
+    fun `govee segments apply only to edge zones`() {
+        val lampZone = LightZone(id = "l", deviceId = "lamp", mapping = ZoneMapping.SOLID, goveeSegments = 4)
+        val plan = OutputPlanner.plan(config(lampZone, main = false), null, listOf(lamp))
+        assertTrue(plan.govee.single().segments.isEmpty())
+        assertEquals(1, plan.totalLeds)
+    }
+
+    @Test
+    fun `govee segment count is sanitized`() {
+        assertEquals(0, LightZone(goveeSegments = -3).sanitized().goveeSegments)
+        assertEquals(LightZone.MIN_GOVEE_SEGMENTS, LightZone(goveeSegments = 1).sanitized().goveeSegments)
+        assertEquals(LightZone.MAX_GOVEE_SEGMENTS, LightZone(goveeSegments = 999).sanitized().goveeSegments)
+    }
+
+    @Test
     fun `missing device and disabled zones`() {
         val orphan = LightZone(id = "o", deviceId = "gone")
         val off = LightZone(id = "x", deviceId = "desk", enabled = false)

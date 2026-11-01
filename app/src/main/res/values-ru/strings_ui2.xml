@@ -58,7 +58,14 @@
     <string name="zone_region">Область экрана</string>
     <string name="zone_brightness">Яркость зоны</string>
     <string name="zone_perimeter_counts">LED по сторонам</string>
-    <string name="zone_govee_note">Лампы Govee показывают один цвет: посегментное управление не входит в опубликованный LAN API.</string>
+    <string name="zone_govee_note">По умолчанию лампа показывает один цвет через официальный LAN API. Для сегментов выберите «Край экрана» и включите посегментный режим.</string>
+    <string name="zone_govee_segments">Посегментно (экспериментально)</string>
+    <string name="zone_govee_segments_desc">Неофициальный режим razer/DreamView: Govee его не документирует, лампа не подтверждает приём. Работает ли ваша модель, видно только на самой лампе: нажмите «Тест» на карточке зоны.</string>
+    <string name="zone_govee_segment_count">Сегменты</string>
+    <string name="zone_govee_segment_count_desc">Сегменты равномерно распределяются вдоль выбранного края экрана</string>
+    <string name="zone_govee_stretch">Растянуть на всю лампу</string>
+    <string name="zone_govee_stretch_desc">Если выключить, цвета идут один к одному, и число сегментов должно совпасть с числом в лампе</string>
+    <string name="zone_govee_segments_card">Лампа, сегментов: %1$d (razer)</string>
     <string name="zone_problem_overlap">Пересекается с другим диапазоном LED на этом контроллере</string>
     <string name="zone_problem_protocol">Невозможно с протоколом этого контроллера (используйте DDP или DNRGB)</string>
     <string name="zone_problem_device">Устройство этой зоны удалено</string>

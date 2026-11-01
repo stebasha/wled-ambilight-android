@@ -58,7 +58,14 @@
     <string name="zone_region">Screen area</string>
     <string name="zone_brightness">Zone brightness</string>
     <string name="zone_perimeter_counts">LEDs per side</string>
-    <string name="zone_govee_note">Govee lamps show one colour: per-segment control is not part of the published LAN API.</string>
+    <string name="zone_govee_note">By default the lamp shows one colour through the official LAN API. For segments, choose a screen edge and turn on per-segment mode.</string>
+    <string name="zone_govee_segments">Per segment (experimental)</string>
+    <string name="zone_govee_segments_desc">Unofficial razer/DreamView mode: Govee does not document it and the lamp does not acknowledge it. Whether your model works can only be seen on the lamp: press Test on the zone card.</string>
+    <string name="zone_govee_segment_count">Segments</string>
+    <string name="zone_govee_segment_count_desc">Segments are spread evenly along the chosen screen edge</string>
+    <string name="zone_govee_stretch">Stretch over the whole lamp</string>
+    <string name="zone_govee_stretch_desc">When off, colours map one to one and the count must match the lamp\'s own segments</string>
+    <string name="zone_govee_segments_card">Lamp, %1$d segments (razer)</string>
     <string name="zone_problem_overlap">Overlaps another LED range on this controller</string>
     <string name="zone_problem_protocol">Not possible with this controller\'s protocol (use DDP or DNRGB)</string>
     <string name="zone_problem_device">The device of this zone was removed</string>

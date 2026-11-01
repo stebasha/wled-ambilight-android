@@ -250,7 +250,12 @@ private fun ZoneCard(
                 }
                 Text(
                     if (isGovee) {
-                        zone.entityId?.takeIf { device?.kind == DeviceKind.HOME_ASSISTANT } ?: stringResource(R.string.zone_lamp)
+                        zone.entityId?.takeIf { device?.kind == DeviceKind.HOME_ASSISTANT }
+                            ?: if (device?.kind == DeviceKind.GOVEE && zone.mapping == ZoneMapping.EDGE && zone.goveeSegments > 0) {
+                                stringResource(R.string.zone_govee_segments_card, zone.goveeSegments)
+                            } else {
+                                stringResource(R.string.zone_lamp)
+                            }
                     } else {
                         val count = zone.ledsFor(DeviceKind.WLED)
                         stringResource(R.string.zone_range, zone.ledOffset, zone.ledOffset + count - 1)
@@ -415,7 +420,34 @@ private fun ZoneDialog(
                             label = { sideLabel(it) },
                             onSelected = { zone = zone.copy(edge = it) },
                         )
-                        if (!isGovee) {
+                        val goveeSegments = device?.kind == DeviceKind.GOVEE && zone.goveeSegments > 0
+                        if (device?.kind == DeviceKind.GOVEE) {
+                            SwitchRow(
+                                label = stringResource(R.string.zone_govee_segments),
+                                description = stringResource(R.string.zone_govee_segments_desc),
+                                checked = goveeSegments,
+                                onCheckedChange = {
+                                    zone = zone.copy(goveeSegments = if (it) LightZone.DEFAULT_GOVEE_SEGMENTS else 0)
+                                },
+                            )
+                        }
+                        if (goveeSegments) {
+                            NumberStepper(
+                                label = stringResource(R.string.zone_govee_segment_count),
+                                description = stringResource(R.string.zone_govee_segment_count_desc),
+                                value = zone.goveeSegments,
+                                range = LightZone.MIN_GOVEE_SEGMENTS..LightZone.MAX_GOVEE_SEGMENTS,
+                                bigStep = 5,
+                                onChange = { zone = zone.copy(goveeSegments = it) },
+                            )
+                            SwitchRow(
+                                label = stringResource(R.string.zone_govee_stretch),
+                                description = stringResource(R.string.zone_govee_stretch_desc),
+                                checked = zone.goveeStretch,
+                                onCheckedChange = { zone = zone.copy(goveeStretch = it) },
+                            )
+                        }
+                        if (!isGovee || goveeSegments) {
                             SwitchRow(
                                 label = stringResource(R.string.zone_reverse),
                                 description = stringResource(R.string.zone_reverse_desc),

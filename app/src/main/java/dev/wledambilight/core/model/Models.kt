@@ -166,6 +166,13 @@ data class LightZone(
     val brightness: Int = 100,
     /** Home Assistant only: the `light.*` entity driven by this zone. */
     val entityId: String? = null,
+    /**
+     * Govee edge zones only: segments streamed through the unofficial razer mode, spread along the
+     * edge. 0 keeps the documented single-colour LAN API.
+     */
+    val goveeSegments: Int = 0,
+    /** Spread the segments over the whole lamp, which tolerates a count that differs from the lamp's. */
+    val goveeStretch: Boolean = true,
 ) {
     /** Number of LEDs this zone writes on a WLED controller. */
     fun ledsFor(kind: DeviceKind): Int = when {
@@ -180,10 +187,14 @@ data class LightZone(
         ledCount = ledCount.coerceIn(1, LedLayout.MAX_SIDE),
         brightness = brightness.coerceIn(0, 100),
         entityId = entityId?.trim()?.take(255)?.ifBlank { null },
+        goveeSegments = if (goveeSegments <= 0) 0 else goveeSegments.coerceIn(MIN_GOVEE_SEGMENTS, MAX_GOVEE_SEGMENTS),
     )
 
     companion object {
         const val MAX_ZONES = 12
+        const val MIN_GOVEE_SEGMENTS = 2
+        const val MAX_GOVEE_SEGMENTS = 100
+        const val DEFAULT_GOVEE_SEGMENTS = 10
     }
 }
 

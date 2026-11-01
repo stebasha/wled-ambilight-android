@@ -24,6 +24,7 @@ import dev.wledambilight.core.network.ScanHit
 import dev.wledambilight.core.network.SubnetPlanner
 import dev.wledambilight.core.network.HaLight
 import dev.wledambilight.core.network.WledPreset
+import dev.wledambilight.core.protocol.GoveeLan
 import dev.wledambilight.core.protocol.GoveeScanResult
 import dev.wledambilight.core.protocol.TestPatternSender
 import dev.wledambilight.engine.EngineState
@@ -33,6 +34,7 @@ import dev.wledambilight.engine.StopReason
 import dev.wledambilight.service.AmbilightService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -118,6 +120,7 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     private var discoveryJob: Job? = null
     private var scanJob: Job? = null
     private var goveeJob: Job? = null
+    private var segmentTestJob: Job? = null
     private var lastScanReport = 0L
 
     fun updateSettings(transform: (AmbilightSettings) -> AmbilightSettings) {
@@ -336,6 +339,15 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
                 } catch (error: Exception) {
                     diagnostics.report(error.toDiagnosticCode(), entity)
                 }
+            }
+            return
+        }
+        if (device.kind == DeviceKind.GOVEE && zone.mapping == ZoneMapping.EDGE && zone.goveeSegments > 0) {
+            segmentTestJob?.cancel()
+            segmentTestJob = viewModelScope.launch {
+                testSender.sendGoveeSegments(device, GoveeLan.segmentTestPattern(zone.goveeSegments), zone.goveeStretch)
+                delay(SEGMENT_TEST_MS)
+                if (engineState.value !is EngineState.Running) testSender.stopGoveeSegments(device)
             }
             return
         }
@@ -607,6 +619,7 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     companion object {
         const val TEST_COLOR = 0xFFFFB020.toInt()
+        private const val SEGMENT_TEST_MS = 10_000L
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer { AppViewModel(container) }

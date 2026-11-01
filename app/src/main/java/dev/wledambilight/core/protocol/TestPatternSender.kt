@@ -25,6 +25,35 @@ class TestPatternSender(private val diagnostics: DiagnosticsRepository) {
      */
     suspend fun send(device: WledDevice, colors: IntArray, report: Boolean = false, ledOffset: Int = 0) {
         if (colors.isEmpty()) return
+        val packets = when {
+            device.kind == DeviceKind.GOVEE -> listOf(
+                GoveeLan.turn(true).encodeToByteArray(),
+                GoveeLan.color(colors.first()).encodeToByteArray(),
+            )
+            device.protocol == OutputProtocol.DDP ->
+                DdpPacketBuilder().build(RgbEncoder.toRgbBytes(colors), ledOffset = ledOffset)
+            else ->
+                WledUdpPacketBuilder(device.wledUdpMode).build(RgbEncoder.toRgbBytes(colors), ledOffset)
+        }
+        deliver(device, packets, report)
+    }
+
+    /** Shows [colors] on the segments of a Govee lamp through razer mode. */
+    suspend fun sendGoveeSegments(device: WledDevice, colors: IntArray, stretch: Boolean) {
+        val packets = listOf(
+            GoveeLan.turn(true),
+            GoveeLan.razerMode(true),
+            GoveeLan.razerColors(colors, stretch),
+        ).map { it.encodeToByteArray() }
+        deliver(device, packets, report = true)
+    }
+
+    /** Hands a Govee lamp back after [sendGoveeSegments]. */
+    suspend fun stopGoveeSegments(device: WledDevice) {
+        deliver(device, listOf(GoveeLan.razerMode(false).encodeToByteArray()), report = false)
+    }
+
+    private suspend fun deliver(device: WledDevice, packets: List<ByteArray>, report: Boolean) {
         mutex.withLock {
             val port = if (device.kind == DeviceKind.GOVEE) GoveeLan.COMMAND_PORT else device.outputPort
             val deviceKey = listOf(device.id, device.host, port, device.kind).joinToString("|")
@@ -35,16 +64,6 @@ class TestPatternSender(private val diagnostics: DiagnosticsRepository) {
             }
             val active = output ?: UdpLedOutput(device.host, port).also { output = it }
             try {
-                val packets = when {
-                    device.kind == DeviceKind.GOVEE -> listOf(
-                        GoveeLan.turn(true).encodeToByteArray(),
-                        GoveeLan.color(colors.first()).encodeToByteArray(),
-                    )
-                    device.protocol == OutputProtocol.DDP ->
-                        DdpPacketBuilder().build(RgbEncoder.toRgbBytes(colors), ledOffset = ledOffset)
-                    else ->
-                        WledUdpPacketBuilder(device.wledUdpMode).build(RgbEncoder.toRgbBytes(colors), ledOffset)
-                }
                 active.sendPackets(packets)
                 if (report) {
                     diagnostics.report(
