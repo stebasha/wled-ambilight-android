@@ -84,7 +84,8 @@ class GoveeRazerOutput(
         /** Community reports: stable at 40 frames/s or more. */
         const val DEFAULT_INTERVAL_MS = 25L
         const val REFRESH_MS = 1_000L
-        const val REARM_MS = 5_000L
+        /** Well inside the lamp's one-minute timeout; re-arming too often is a suspected flicker source. */
+        const val REARM_MS = 30_000L
         const val SETTLE_MS = 100L
         private const val CHANGE_THRESHOLD = 3
     }
