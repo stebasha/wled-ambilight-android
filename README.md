@@ -1,5 +1,11 @@
 # WLED Ambilight для Android / Android TV
 
+[![Android CI](https://github.com/stebasha/wled-ambilight-android/actions/workflows/android.yml/badge.svg)](https://github.com/stebasha/wled-ambilight-android/actions/workflows/android.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+*Screen-reactive ambient lighting for Android and Android TV: drives WLED LED strips over DDP/UDP,
+plus Govee and Home Assistant lights. Everything runs locally; no frames leave the device.*
+
 Локальное приложение фоновой подсветки: анализирует периметр экрана и передаёт цвета на
 LED-контроллер с прошивкой [WLED](https://kno.wled.ge/) по DDP или WLED UDP. Работает на
 смартфонах, планшетах, Android TV и Google TV.
@@ -116,12 +122,12 @@ Release-сборка: `.\gradlew.bat assembleRelease`. APK по умолчани
 | Проверка | Результат |
 |---|---|
 | `assembleDebug` | успешно; APK 17.2 МБ |
-| `testDebugUnitTest` | успешно, 81 тест, 0 падений |
+| `testDebugUnitTest` | успешно, 124 теста, 0 падений |
 | `lintDebug` | 0 ошибок, 0 предупреждений (конфигурация `app/lint.xml`) |
 | `assembleDebugAndroidTest` | успешно (запуск требует устройства) |
 | `assembleRelease` (R8, shrink) | успешно; APK 1.5 МБ, неподписан |
 | Реальный WLED | не проверялось: нет оборудования |
-| Android TV / пульт | не проверялось: нет устройства/эмулятора TV |
+| Android TV / пульт | установка и запуск на эмуляторе Android TV; на реальном устройстве не проверялось |
 | DRM-контент | не проверялось; обход не реализован |
 
 Известные ограничения перечислены в [PROTOCOLS.md](PROTOCOLS.md) и в разделе «Известные

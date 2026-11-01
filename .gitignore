@@ -12,3 +12,13 @@ captures/
 *.log
 .kotlin/
 dist/
+emu-temp/
+
+# Signing keys and secrets
+*.keystore
+*.jks
+adbkey
+adbkey.pub
+*.pem
+.env
+.env.*
